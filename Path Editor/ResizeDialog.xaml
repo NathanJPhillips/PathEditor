@@ -1,0 +1,55 @@
+﻿<Window x:Class="NobleTech.Products.PathEditor.ResizeDialog"
+        x:ClassModifier="internal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converter="clr-namespace:NobleTech.Products.PathEditor.Converters"
+        xmlns:viewmodels="clr-namespace:NobleTech.Products.PathEditor.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance viewmodels:ResizeViewModel}"
+        Title="Resize Canvas"
+        Width="275" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" WindowStyle="ToolWindow">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="5,0,0,0" />
+            <Setter Property="Padding" Value="10,5" />
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Width" Value="50" />
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="Margin" Value="0,0,5,0" />
+        </Style>
+
+        <converter:BooleanNotConverter x:Key="BooleanNotConverter" />
+    </Window.Resources>
+    <StackPanel Margin="10">
+        <CheckBox IsChecked="{Binding IsProportional}" Margin="0,0,0,10">_Maintain Aspect Ratio</CheckBox>
+        <CheckBox IsEnabled="{Binding IsProportional, Converter={StaticResource BooleanNotConverter}}" IsChecked="{Binding KeepPathsPropertional}" Margin="0,0,0,10">_Keep Paths in Proportion</CheckBox>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Label Grid.Row="0" Target="{Binding ElementName=WidthTextBox}">_Width:</Label>
+            <TextBox x:Name="WidthTextBox" Grid.Row="0" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}" />
+
+            <Label Grid.Row="1" Target="{Binding ElementName=HeightTextBox}">_Height:</Label>
+            <TextBox x:Name="HeightTextBox" Grid.Row="1" Grid.Column="1" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Command="{Binding ApplyCommand}">_Apply</Button>
+            <Button IsDefault="True" Command="{Binding OKCommand}">OK</Button>
+            <Button IsCancel="True">Cancel</Button>
+        </StackPanel>
+    </StackPanel>
+</Window>
