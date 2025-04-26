@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using NobleTech.Products.PathEditor.Utils;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Media;
 
@@ -10,7 +11,7 @@ namespace NobleTech.Products.PathEditor.ViewModels;
 
 internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 {
-    private const string fileFilter = "C# Source Files|*.cs|All Files|*.*";
+    private const string fileFilter = "Paths Files|*.path|C# Source Files|*.cs|All Files|*.*";
 
     public EditorViewModel()
     {
@@ -62,16 +63,31 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     }
 
     [RelayCommand]
+    private void Open()
+    {
+        CompleteCurrentPath();
+        FileDialogViewModel viewModel = new() { Filter = fileFilter };
+        if (Navigation.ShowDialog("Open", viewModel) == true && viewModel.FilePath is not null)
+        {
+            string extension = Path.GetExtension(viewModel.FilePath);
+            if (extension == ".cs")
+                LoadFromCSharp(viewModel.FilePath);
+            else if (extension == ".path")
+                LoadFromBinary(viewModel.FilePath);
+        }
+    }
+
+    [RelayCommand]
     private void Save()
     {
         CompleteCurrentPath();
         if (FilePath is not null)
-            SaveAsCSharp(FilePath);
+            DoSave(FilePath);
         else
         {
             FileDialogViewModel viewModel = new() { Filter = fileFilter };
             if (Navigation.ShowDialog("Save", viewModel) == true && viewModel.FilePath is not null)
-                SaveAsCSharp(viewModel.FilePath);
+                DoSave(viewModel.FilePath);
         }
     }
 
@@ -81,7 +97,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         CompleteCurrentPath();
         FileDialogViewModel viewModel = new() { Filter = fileFilter, FilePath = FilePath };
         if (Navigation.ShowDialog("Save", viewModel) == true && viewModel.FilePath is not null)
-            SaveAsCSharp(viewModel.FilePath);
+            DoSave(viewModel.FilePath);
     }
 
     [RelayCommand]
@@ -208,6 +224,119 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         MapPaths(path => path with { Points = [.. path.Points.Select(point => point + offset)] });
     }
 
+    private void DoSave(string filePath)
+    {
+        string extension = Path.GetExtension(filePath);
+        if (extension == ".cs")
+            SaveAsCSharp(filePath);
+        else if (extension == ".path")
+            SaveAsBinary(filePath);
+    }
+
+    private void LoadFromBinary(string filePath)
+    {
+        using FileStream stream = new(filePath, FileMode.Open);
+        using BinaryReader reader = new(stream);
+        double width = reader.ReadDouble();
+        double height = reader.ReadDouble();
+        CanvasSize = new(width, height);
+        int pathCount = reader.ReadInt32();
+        CompletePaths.Clear();
+        for (int pathIndex = 0; pathIndex < pathCount; pathIndex++)
+        {
+            int pointCount = reader.ReadInt32();
+            ObservableCollection<Point> points = [];
+            for (int pointIndex = 0; pointIndex < pointCount; pointIndex++)
+                points.Add(new(reader.ReadDouble(), reader.ReadDouble()));
+            byte a = reader.ReadByte();
+            byte r = reader.ReadByte();
+            byte g = reader.ReadByte();
+            byte b = reader.ReadByte();
+            double strokeThickness = reader.ReadDouble();
+            CompletePaths.Add(new(points, Color.FromArgb(a, r, g, b), strokeThickness));
+        }
+        FilePath = filePath;
+    }
+
+    private void SaveAsBinary(string filePath)
+    {
+        using FileStream stream = new(filePath, FileMode.Create);
+        using BinaryWriter writer = new(stream);
+        writer.Write(CanvasSize.Width);
+        writer.Write(CanvasSize.Height);
+        writer.Write(CompletePaths.Count);
+        foreach (DrawablePath path in CompletePaths)
+        {
+            writer.Write(path.Points.Count);
+            foreach (Point point in path.Points)
+            {
+                writer.Write(point.X);
+                writer.Write(point.Y);
+            }
+            writer.Write(path.StrokeColor.A);
+            writer.Write(path.StrokeColor.R);
+            writer.Write(path.StrokeColor.G);
+            writer.Write(path.StrokeColor.B);
+            writer.Write(path.StrokeThickness);
+        }
+        FilePath = filePath;
+    }
+
+    private void LoadFromCSharp(string filePath)
+    {
+        using StreamReader reader = new(filePath);
+        string? line;
+        do
+        {
+            if ((line = reader.ReadLine()) is null)
+                return;
+        } while (!CSharpDefinitionRegex().IsMatch(line));
+        if ((line = reader.ReadLine()) is null || !CSharpNewRegex().IsMatch(line))
+            return;
+        if ((line = reader.ReadLine()) is null || !CSharpListStartRegex().IsMatch(line))
+            return;
+        CompletePaths.Clear();
+        Regex pathRegex = CSharpPathRegex();
+        Regex pointsRegex = CSharpPointsRegex();
+        while (true)
+        {
+            if ((line = reader.ReadLine()) is null)
+                return;
+            Match pathMatch = pathRegex.Match(line);
+            if (!pathMatch.Success)
+                break;
+            MatchCollection pointsMatches = pointsRegex.Matches(pathMatch.Groups["points"].Value);
+            if (pointsMatches.Count == 0)
+                return;
+            ObservableCollection<Point> points = [];
+            foreach (Match pointMatch in pointsMatches)
+            {
+                double x = double.Parse(pointMatch.Groups["x"].Value);
+                double y = double.Parse(pointMatch.Groups["y"].Value);
+                points.Add(new(x, y));
+            }
+            var color = Color.FromArgb(
+                byte.Parse(pathMatch.Groups["a"].Value),
+                byte.Parse(pathMatch.Groups["r"].Value),
+                byte.Parse(pathMatch.Groups["g"].Value),
+                byte.Parse(pathMatch.Groups["b"].Value));
+            double strokeThickness = double.Parse(pathMatch.Groups["thickness"].Value);
+            CompletePaths.Add(new(points, color, strokeThickness));
+        }
+        if (!CSharpListEndRegex().IsMatch(line))
+            return;
+        if ((line = reader.ReadLine()) is null)
+            return;
+        Match canvasSizeMatch = CSharpCanvasSizeRegex().Match(line);
+        if (!canvasSizeMatch.Success)
+            return;
+        CanvasSize =
+            new(
+                double.Parse(canvasSizeMatch.Groups["width"].Value),
+                double.Parse(canvasSizeMatch.Groups["height"].Value));
+        FilePath = filePath;
+    }
+
     private void SaveAsCSharp(string filePath)
     {
         using StreamWriter writer = new(filePath);
@@ -259,4 +388,19 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         CompletePaths.Clear();
         CompletePaths.AddRange(completePaths.Select(projection));
     }
+
+    [GeneratedRegex("""^\s*DrawnPaths\s+(?<name>[\w_\d]+)\s*=\s*$""", RegexOptions.Compiled)]
+    private static partial Regex CSharpDefinitionRegex();
+    [GeneratedRegex("""^\s*new\s*\(\s*$""", RegexOptions.Compiled)]
+    private static partial Regex CSharpNewRegex();
+    [GeneratedRegex("""^\s*\[\s*$""", RegexOptions.Compiled)]
+    private static partial Regex CSharpListStartRegex();
+    [GeneratedRegex("""^\s*new\s*\(\s*\[\s*(?<points>.+?)\],\s*new\(\)\s*\{\s*A\s*=\s*(?<a>\d+),\s*R\s*=\s*(?<r>\d+),\s*G\s*=\s*(?<g>\d+),\s*B\s*=\s*(?<b>\d+)\s*\},\s*StrokeThickness:\s*(?<thickness>\d+(?:\.\d+)?)\s*\)\s*,?\s*$""", RegexOptions.Compiled)]
+    private static partial Regex CSharpPathRegex();
+    [GeneratedRegex("""\s*new\s*\(\s*(?<x>\d+(?:\.\d+)?),\s*(?<y>\d+(?:\.\d+)?)\s*\)\s*,?\s*""", RegexOptions.Compiled)]
+    private static partial Regex CSharpPointsRegex();
+    [GeneratedRegex("""^\s*\]\s*,\s*$""", RegexOptions.Compiled)]
+    private static partial Regex CSharpListEndRegex();
+    [GeneratedRegex("""^\s*new\s*\(\s*(?<width>\d+(?:\.\d+)?),\s*(?<height>\d+(?:\.\d+)?)\s*\)\s*\)\s*;\s*$""", RegexOptions.Compiled)]
+    private static partial Regex CSharpCanvasSizeRegex();
 }
