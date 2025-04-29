@@ -227,10 +227,27 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     private void DoSave(string filePath)
     {
         string extension = Path.GetExtension(filePath);
-        if (extension == ".cs")
-            SaveAsCSharp(filePath);
-        else if (extension == ".path")
-            SaveAsBinary(filePath);
+        try
+        {
+            if (extension == ".cs")
+                SaveAsCSharp(filePath);
+            else if (extension == ".path")
+                SaveAsBinary(filePath);
+        }
+        catch (IOException ex)
+        {
+            MessageBoxViewModel viewModel =
+                new()
+                {
+                    Title = "Error Saving File",
+                    Message = $"An error occurred while saving the file: {ex.Message}\nShall we try to save again?",
+                    ButtonsToShow = MessageBoxViewModel.Buttons.Yes | MessageBoxViewModel.Buttons.No,
+                    DefaultButton = MessageBoxViewModel.Buttons.No,
+                    Image = MessageBoxViewModel.Images.Warning,
+                };
+            if (Navigation.ShowDialog("MessageBox", viewModel) == true && viewModel.SelectedButton == MessageBoxViewModel.Buttons.Yes)
+                DoSave(filePath);
+        }
     }
 
     private void LoadFromBinary(string filePath)
