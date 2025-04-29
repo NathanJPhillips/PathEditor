@@ -336,14 +336,44 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// <param name="filePath">The file path to which to save.</param>
     private void DoSave(string filePath)
     {
-        switch (Path.GetExtension(filePath))
+        try
         {
-        case ".cs":
-            SaveAsCSharp(filePath);
-            break;
-        case ".path":
-            SaveAsBinary(filePath);
-            break;
+            switch (Path.GetExtension(filePath))
+            {
+            case ".cs":
+                SaveAsCSharp(filePath);
+                break;
+            case ".path":
+                SaveAsBinary(filePath);
+                break;
+            default:
+                Navigation.ShowDialog(
+                    NavigationDestinations.MessageBox,
+                    new MessageBoxViewModel()
+                    {
+                        Title = "Unknown extension",
+                        Message = $"A file format couldn't be determined for the selected file extension so the file has not been saved.",
+                        Image = MessageBoxViewModel.Images.Warning,
+                    });
+                break;
+            }
+        }
+        catch (IOException ex)
+        {
+            MessageBoxViewModel viewModel =
+                new()
+                {
+                    Title = "Error Saving File",
+                    Message = $"An error occurred while saving the file: {ex.Message}\nShall we try to save again?",
+                    ButtonsToShow = MessageBoxViewModel.Buttons.Yes | MessageBoxViewModel.Buttons.No,
+                    DefaultButton = MessageBoxViewModel.Buttons.No,
+                    Image = MessageBoxViewModel.Images.Warning,
+                };
+            if (Navigation.ShowDialog(NavigationDestinations.MessageBox, viewModel) == true
+                && viewModel.SelectedButton == MessageBoxViewModel.Buttons.Yes)
+            {
+                DoSave(filePath);
+            }
         }
     }
 
