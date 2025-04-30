@@ -48,6 +48,9 @@ internal class DrawablePath
 
     public Rect Bounds { get; private set; }
 
+    public static DrawablePath FromDrawnPath(DrawnPaths.DrawnPath drawnPath) =>
+        new([.. drawnPath.Points], drawnPath.StrokeColor, drawnPath.StrokeThickness);
+
     public static DrawnPaths.DrawnPath ToDrawnPath(DrawablePath drawablePath) =>
         new([.. drawablePath.Points], drawablePath.StrokeColor, drawablePath.StrokeThickness);
 
