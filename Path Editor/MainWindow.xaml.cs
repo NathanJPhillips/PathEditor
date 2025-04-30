@@ -1,7 +1,9 @@
-﻿using NobleTech.Products.PathEditor.ViewModels;
+﻿using NobleTech.Products.PathEditor.Utils;
+using NobleTech.Products.PathEditor.ViewModels;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace NobleTech.Products.PathEditor;
 
@@ -19,6 +21,7 @@ partial class MainWindow : Window, IDisposable
         DataContextChanged += OnDataContextChanged;
         Closing += OnClosing;
         timer = new(state => Dispatcher.Invoke(AutoSave), null, autoSaveInterval, autoSaveInterval);
+        Loaded += (sender, e) => SetCursor();
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -36,6 +39,7 @@ partial class MainWindow : Window, IDisposable
             newViewModel.Paths.Reset += Redraw;
         }
         Redraw();
+        SetCursor();
     }
 
     private void AddPath(object sender, DrawablePath path) => views.Add(path);
@@ -49,6 +53,16 @@ partial class MainWindow : Window, IDisposable
         if (DataContext is not EditorViewModel viewModel)
             return;
         views.AddRange(viewModel.Paths);
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+        case nameof(EditorViewModel.CurrentStrokeThickness):
+            SetCursor();
+            break;
+        }
     }
 
     private void Canvas_TouchEvent(object sender, TouchEventArgs e)
@@ -97,6 +111,20 @@ partial class MainWindow : Window, IDisposable
         if (DataContext is not EditorViewModel viewModel)
             return;
         viewModel.ProcessPoint(e.GetPosition(Canvas), inputEvent);
+    }
+
+    private void SetCursor()
+    {
+        Canvas.Cursor =
+            DataContext is not EditorViewModel viewModel || !IsAncestorOf(Canvas)
+                ? Cursors.Arrow
+                : CursorUtils.CreateCircle(
+                        viewModel.CurrentStrokeThickness
+                            * VisualTreeHelper.GetDpi(Canvas).PixelsPerDip
+                            * (Canvas.TransformToAncestor(this) is MatrixTransform transform
+                                ? transform.Matrix.M11 // M11 is the X-axis scale
+                                : 1),
+                        viewModel.CurrentStrokeColor);
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
