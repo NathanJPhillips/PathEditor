@@ -20,6 +20,11 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     private const string fileFilter = "Paths Files|*.path|C# Source Files|*.cs|All Files|*.*";
 
     /// <summary>
+    /// The current path being drawn on the canvas.
+    /// </summary>
+    private DrawablePath? currentPath;
+
+    /// <summary>
     /// The paths that have been undone and can be redone.
     /// </summary>
     private readonly ObservableList<DrawablePath, List<DrawablePath>> undonePaths = [];
@@ -29,7 +34,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// </summary>
     public EditorViewModel()
     {
-        CompletePaths.CollectionChanged += (sender, args) => OnPathsChanged();
+        Paths.CollectionChanged += (sender, args) => OnPathsChanged();
         undonePaths.CollectionChanged += (sender, args) => RedoCommand?.NotifyCanExecuteChanged();
     }
 
@@ -77,23 +82,11 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [ObservableProperty]
     private double currentStrokeThickness = 5;
 
-    private readonly ObservableList<DrawablePath, List<DrawablePath>> completePaths = [];
-    /// <summary>
-    /// The completed paths that have been drawn on the canvas.
-    /// </summary>
-    public IReadOnlyObservableCollection<DrawablePath> CompletePaths => completePaths;
-
-    /// <summary>
-    /// The current path being drawn on the canvas.
-    /// </summary>
-    [ObservableProperty]
-    private DrawablePath? currentPath;
-
+    private readonly ObservableList<DrawablePath, List<DrawablePath>> paths = [];
     /// <summary>
     /// The paths that have been drawn or are being drawn on the canvas.
     /// </summary>
-    public IEnumerable<DrawablePath> Paths =>
-        CurrentPath is null || CurrentPath.SegmentCount == 0 ? CompletePaths : CompletePaths.Append(CurrentPath);
+    public IReadOnlyObservableCollection<DrawablePath> Paths => paths;
 
     /// <summary>
     /// The current state of this canvas exported to a <see cref="DrawnPaths"/> object.
@@ -106,8 +99,8 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [RelayCommand]
     private void New()
     {
-        completePaths.Clear();
-        CurrentPath = null;
+        paths.Clear();
+        currentPath = null;
         undonePaths.Clear();
         FilePath = null;
     }
@@ -176,11 +169,12 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
     {
-        CompleteCurrentPath();
-        if (CompletePaths.Count != 0)
-            undonePaths.Add(completePaths.RemoveAt(^1));
+        if (Paths.Count == 0)
+            return;
+        undonePaths.Add(paths.RemoveAt(^1));
+        currentPath = null;
     }
-    private bool CanUndo() => Paths.Any();
+    private bool CanUndo() => Paths.Count != 0;
 
     /// <summary>
     /// Redo the last undone path.
@@ -188,10 +182,10 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo()
     {
-        CompleteCurrentPath();
         if (undonePaths.Count == 0)
             return;
-        completePaths.Add(undonePaths.RemoveAt(^1));
+        paths.Add(undonePaths.RemoveAt(^1));
+        currentPath = null;
     }
     private bool CanRedo() => undonePaths.Count != 0;
 
@@ -202,16 +196,18 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// <param name="e">The event that occured.</param>
     public void ProcessPoint(Point point, InputEvents e)
     {
-        if (e == InputEvents.Down)
-            CompleteCurrentPath();
-
-        if (CurrentPath is null)
-            CurrentPath = new([point], CurrentStrokeColor, CurrentStrokeThickness);
-        else 
-            CurrentPath.Points.Add(point);
+        if (e == InputEvents.Down || currentPath is null)
+        {
+            currentPath = new([point], CurrentStrokeColor, CurrentStrokeThickness);
+        }
+        else if (currentPath.Points.Add(point) && currentPath.SegmentCount == 1)
+        {
+            paths.Add(currentPath);
+            undonePaths.Clear();
+        }
 
         if (e == InputEvents.Up)
-            CompleteCurrentPath();
+            currentPath = null;
     }
 
     /// <summary>
@@ -386,6 +382,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         CanvasSize = new(width, height);
         int pathCount = reader.ReadInt32();
         New();
+        var paths = new DrawablePath[pathCount];
         for (int pathIndex = 0; pathIndex < pathCount; pathIndex++)
         {
             int pointCount = reader.ReadInt32();
@@ -397,8 +394,9 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
             byte g = reader.ReadByte();
             byte b = reader.ReadByte();
             double strokeThickness = reader.ReadDouble();
-            CompletePaths.Add(new(points, Color.FromArgb(a, r, g, b), strokeThickness));
+            paths[pathIndex] = new(points, Color.FromArgb(a, r, g, b), strokeThickness);
         }
+        this.paths.ResetTo(paths);
         FilePath = filePath;
     }
 
@@ -408,10 +406,10 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         using BinaryWriter writer = new(stream);
         writer.Write(CanvasSize.Width);
         writer.Write(CanvasSize.Height);
-        writer.Write(Paths.Count());
-        foreach (DrawablePath path in Paths)
+        writer.Write(DrawnPaths.drawnPaths.Length);
+        foreach (DrawnPaths.DrawnPath path in DrawnPaths.drawnPaths)
         {
-            writer.Write(path.Points.Count);
+            writer.Write(path.Points.Length);
             foreach (Point point in path.Points)
             {
                 writer.Write(point.X);
@@ -442,6 +440,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         New();
         Regex pathRegex = CSharpPathRegex();
         Regex pointsRegex = CSharpPointsRegex();
+        List<DrawablePath> paths = [];
         while (true)
         {
             if ((line = reader.ReadLine()) is null)
@@ -465,7 +464,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
                 byte.Parse(pathMatch.Groups["g"].Value),
                 byte.Parse(pathMatch.Groups["b"].Value));
             double strokeThickness = double.Parse(pathMatch.Groups["thickness"].Value);
-            CompletePaths.Add(new(points, color, strokeThickness));
+            paths.Add(new(points, color, strokeThickness));
         }
         if (!CSharpListEndRegex().IsMatch(line))
             return;
@@ -478,6 +477,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
             new(
                 double.Parse(canvasSizeMatch.Groups["width"].Value),
                 double.Parse(canvasSizeMatch.Groups["height"].Value));
+        this.paths.ResetTo(paths);
         FilePath = filePath;
     }
 
@@ -489,7 +489,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         writer.WriteLine($"    DrawnPaths {FileName.Replace(' ', '_')} =");
         writer.WriteLine("        new(");
         writer.WriteLine("            [");
-        foreach (DrawablePath path in Paths)
+        foreach (DrawnPaths.DrawnPath path in DrawnPaths.drawnPaths)
         {
             writer.WriteLine(
                 $"                new([{string.Join(", ", path.Points.Select(pt => $"new({pt.X}, {pt.Y})"))}], new() {{ A = {path.StrokeColor.A}, R = {path.StrokeColor.R}, G = {path.StrokeColor.G}, B = {path.StrokeColor.B} }}, StrokeThickness: {path.StrokeThickness}),");
@@ -499,30 +499,14 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     }
 
     /// <summary>
-    /// Completes the current path by adding it to the list of completed paths.
-    /// </summary>
-    private void CompleteCurrentPath()
-    {
-        if (CurrentPath is not DrawablePath path)
-            return;
-        CurrentPath = null;
-
-        if (path.SegmentCount == 0)
-            return;
-
-        completePaths.Add(path);
-        undonePaths.Clear();
-    }
-
-    /// <summary>
     /// Gets the bounds of the drawn paths.
     /// </summary>
     /// <returns>The bounds of the drawn paths.</returns>
     private Rect GetBounds()
     {
-        if (!Paths.Any())
+        if (Paths.Count == 0)
             return Rect.Empty;
-        Rect bounds = Paths.First().Bounds;
+        Rect bounds = paths[0].Bounds;
         foreach (DrawablePath path in Paths)
             bounds.Union(path.Bounds);
         return bounds;
@@ -534,8 +518,8 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// <param name="projection"></param>
     private void MapPaths(Func<DrawablePath, DrawablePath> projection)
     {
-        completePaths.ResetTo((DrawablePath[])([.. CompletePaths.Select(projection)]));
-        CurrentPath = CurrentPath is null ? null : projection(CurrentPath);
+        paths.ResetTo((DrawablePath[])([.. Paths.Select(projection)]));
+        currentPath = null;
     }
 
     [GeneratedRegex("""^\s*DrawnPaths\s+(?<name>[\w_\d]+)\s*=\s*$""", RegexOptions.Compiled)]

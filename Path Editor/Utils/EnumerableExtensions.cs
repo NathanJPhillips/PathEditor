@@ -28,4 +28,10 @@ internal static class EnumerableExtensions
         }
         yield return projection(current, default);
     }
+
+    public static void DisposeAll(this IEnumerable<IDisposable> disposables)
+    {
+        foreach (IDisposable disposable in disposables)
+            disposable.Dispose();
+    }
 }
