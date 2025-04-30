@@ -1,16 +1,12 @@
 ﻿using NobleTech.Products.PathEditor.ViewModels;
-using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media;
 
 namespace NobleTech.Products.PathEditor;
 
 partial class MainWindow : Window
 {
     private readonly Views views;
-
-    private PolyLineSegment? currentSegment;
 
     public MainWindow()
     {
@@ -23,19 +19,17 @@ partial class MainWindow : Window
     {
         if (e.OldValue is EditorViewModel oldViewModel)
         {
-            oldViewModel.CompletedPathAdded -= AddCompletedPath;
-            oldViewModel.CompletedPathRemoved -= RemoveCompletedPath;
-            oldViewModel.CurrentPathExtended -= ExtendCurrentPath;
+            oldViewModel.PathAdded -= AddCompletedPath;
+            oldViewModel.PathRemoved -= RemoveCompletedPath;
+            oldViewModel.PathExtended -= ExtendPath;
             oldViewModel.RedrawRequired -= Redraw;
-            oldViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         }
         if (e.NewValue is EditorViewModel newViewModel)
         {
-            newViewModel.CompletedPathAdded += AddCompletedPath;
-            newViewModel.CompletedPathRemoved += RemoveCompletedPath;
-            newViewModel.CurrentPathExtended += ExtendCurrentPath;
+            newViewModel.PathAdded += AddCompletedPath;
+            newViewModel.PathRemoved += RemoveCompletedPath;
+            newViewModel.PathExtended += ExtendPath;
             newViewModel.RedrawRequired += Redraw;
-            newViewModel.PropertyChanged += ViewModel_PropertyChanged;
         }
         Redraw();
     }
@@ -44,25 +38,15 @@ partial class MainWindow : Window
 
     private void RemoveCompletedPath(DrawablePath path) => views.Remove(path);
 
-    private void ExtendCurrentPath(Point point) => currentSegment?.Points.Add(point);
+    private void ExtendPath(DrawablePath path, Point point) => views.Add(path).Points.Add(point);
 
     private void Redraw()
     {
         views.Clear();
         if (DataContext is not EditorViewModel viewModel)
             return;
-        views.AddRange(viewModel.CompletePaths);
-        DrawCurrentPath(viewModel.CurrentPath);
+        views.AddRange(viewModel.Paths);
     }
-
-    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (sender is EditorViewModel viewModel && e.PropertyName == nameof(viewModel.CurrentPath))
-            DrawCurrentPath(viewModel.CurrentPath);
-    }
-
-    private void DrawCurrentPath(DrawablePath? currentPath) =>
-        currentSegment = currentPath is null ? null : views.Add(currentPath);
 
     private void Canvas_TouchEvent(object sender, TouchEventArgs e)
     {

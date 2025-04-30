@@ -11,6 +11,9 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 {
     private const string fileFilter = "Paths Files|*.path|C# Source Files|*.cs|All Files|*.*";
 
+    private readonly List<DrawablePath> completePaths = [];
+    private DrawablePath? currentPath;
+
     private INavigationService? navigation;
     public INavigationService Navigation
     {
@@ -34,31 +37,27 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [ObservableProperty]
     private double currentStrokeThickness = 5;
 
-    public List<DrawablePath> CompletePaths { get; } = [];
-
-    [ObservableProperty]
-    private DrawablePath? currentPath;
+    public IEnumerable<DrawablePath> Paths =>
+        currentPath is null || currentPath.Points.Count < 2 ? completePaths : completePaths.Append(currentPath);
 
     private readonly List<DrawablePath> undonePaths = [];
 
     public DrawnPaths DrawnPaths =>
-        new(
-            [.. (CurrentPath is null ? CompletePaths : CompletePaths.Append(CurrentPath)).Select(DrawablePath.ToDrawnPath)],
-            CanvasSize);
+        new([.. Paths.Select(DrawablePath.ToDrawnPath)], CanvasSize);
 
-    public event Action<Point>? CurrentPathExtended;
+    public event Action<DrawablePath>? PathAdded;
 
-    public event Action<DrawablePath>? CompletedPathAdded;
+    public event Action<DrawablePath>? PathRemoved;
 
-    public event Action<DrawablePath>? CompletedPathRemoved;
+    public event Action<DrawablePath, Point>? PathExtended;
 
     public event Action? RedrawRequired;
 
     [RelayCommand]
     private void New()
     {
-        CompletePaths.Clear();
-        CurrentPath = null;
+        completePaths.Clear();
+        currentPath = null;
         undonePaths.Clear();
         FilePath = null;
         RedrawRequired?.Invoke();
@@ -98,8 +97,8 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 
         CompleteCurrentPath();
         CanvasSize = paths.canvasSize;
-        CompletePaths.Clear();
-        CompletePaths.AddRange(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
+        completePaths.Clear();
+        completePaths.AddRange(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
         FilePath = filePath;
         RedrawRequired?.Invoke();
     }
@@ -132,11 +131,11 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     private void Undo()
     {
         CompleteCurrentPath();
-        if (CompletePaths.Count != 0)
+        if (completePaths.Count != 0)
         {
-            DrawablePath removedPath = CompletePaths[^1];
-            CompletePaths.RemoveAt(CompletePaths.Count - 1);
-            CompletedPathRemoved?.Invoke(removedPath);
+            DrawablePath removedPath = completePaths[^1];
+            completePaths.RemoveAt(completePaths.Count - 1);
+            PathRemoved?.Invoke(removedPath);
             undonePaths.Add(removedPath);
             UndoCommand?.NotifyCanExecuteChanged();
             RedoCommand?.NotifyCanExecuteChanged();
@@ -152,8 +151,8 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
             return;
         DrawablePath addedPath = undonePaths[^1];
         undonePaths.RemoveAt(undonePaths.Count - 1);
-        CompletePaths.Add(addedPath);
-        CompletedPathAdded?.Invoke(addedPath);
+        completePaths.Add(addedPath);
+        PathAdded?.Invoke(addedPath);
         UndoCommand?.NotifyCanExecuteChanged();
         RedoCommand?.NotifyCanExecuteChanged();
     }
@@ -164,14 +163,17 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         if (action == InputAction.Down)
             CompleteCurrentPath();
 
-        if (CurrentPath is not { Points: List<Point> currentPoints })
+        if (currentPath is not { Points: List<Point> currentPoints })
         {
-            CurrentPath = new([point], CurrentStrokeColor, CurrentStrokeThickness);
+            currentPath = new([point], CurrentStrokeColor, CurrentStrokeThickness);
+            PathAdded?.Invoke(currentPath);
             UndoCommand?.NotifyCanExecuteChanged();
         }
         else if (currentPoints[^1] != point)
+        {
             currentPoints.Add(point);
-        CurrentPathExtended?.Invoke(point);
+            PathExtended?.Invoke(currentPath, point);
+        }
 
         if (action == InputAction.Up)
             CompleteCurrentPath();
@@ -286,26 +288,32 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 
     private void CompleteCurrentPath()
     {
-        if (CurrentPath is not DrawablePath path)
+        if (currentPath is not DrawablePath path)
             return;
 
-        Debug.Assert(path.Points.Count != 0);
-        if (path.Points.Count > 1)
-            CompletePaths.Add(path);
-        else
-            CompletedPathRemoved?.Invoke(path);
+        currentPath = null;
 
-        CurrentPath = null;
+        Debug.Assert(path.Points.Count != 0);
+        if (path.Points.Count < 2)
+        {
+            // Remove the path currently being drawn from the view.
+            PathRemoved?.Invoke(path);
+            return;
+        }
+
+        completePaths.Add(path);
+        PathAdded?.Invoke(path);
         undonePaths.Clear();
         RedoCommand?.NotifyCanExecuteChanged();
     }
 
     private Rect GetBounds()
     {
-        if (DrawnPaths.drawnPaths.Length == 0)
+        DrawablePath[] paths = [.. Paths];
+        if (paths.Length == 0)
             return Rect.Empty;
-        Rect bounds = new(DrawnPaths.drawnPaths[0].Points[0], DrawnPaths.drawnPaths[0].Points[0]);
-        foreach (DrawnPaths.DrawnPath path in DrawnPaths.drawnPaths)
+        Rect bounds = new(paths[0].Points[0], paths[0].Points[0]);
+        foreach (DrawablePath path in paths)
         {
             Rect pathBounds = new(path.Points[0], path.Points[0]);
             foreach (Point point in path.Points)
@@ -318,10 +326,10 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 
     private void MapPaths(Func<DrawablePath, DrawablePath> projection)
     {
-        DrawablePath[] completePaths = [.. CompletePaths];
-        CompletePaths.Clear();
-        CompletePaths.AddRange(completePaths.Select(projection));
-        CurrentPath = CurrentPath is null ? null : projection(CurrentPath);
+        DrawablePath[] oldPaths = [.. completePaths];
+        completePaths.Clear();
+        completePaths.AddRange(oldPaths.Select(projection));
+        currentPath = currentPath is null ? null : projection(currentPath);
         RedrawRequired?.Invoke();
     }
 }

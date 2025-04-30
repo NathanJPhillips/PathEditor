@@ -12,6 +12,8 @@ internal class Views(Canvas Canvas)
 
     public PolyLineSegment Add(DrawablePath path)
     {
+        if (segmentAndViews.TryGetValue(path, out (PolyLineSegment segment, Path view) segmentAndView))
+            return segmentAndView.segment;
         (PolyLineSegment segment, Path view) = CreateView(path);
         segmentAndViews.Add(path, (segment, view));
         Canvas.Children.Add(view);
