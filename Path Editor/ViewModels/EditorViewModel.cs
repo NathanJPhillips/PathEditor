@@ -11,8 +11,16 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 {
     private const string fileFilter = "Paths Files|*.path|C# Source Files|*.cs|All Files|*.*";
 
+    private static readonly string autoSaveFolder = Path.Combine(Path.GetTempPath(), "Path Editor");
+    private static readonly string autoSavePath = Path.Combine(autoSaveFolder, "AutoSave.path");
+
     private readonly List<DrawablePath> completePaths = [];
     private DrawablePath? currentPath;
+
+    public EditorViewModel()
+    {
+        LoadAutoSave();
+    }
 
     private INavigationService? navigation;
     public INavigationService Navigation
@@ -147,6 +155,34 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         FileDialogViewModel viewModel = new() { Filter = fileFilter, FilePath = FilePath };
         if (Navigation.ShowDialog("Save", viewModel) == true && viewModel.FilePath is not null)
             DoSave(viewModel.FilePath);
+    }
+
+    public void AutoSave()
+    {
+        try
+        {
+            Directory.CreateDirectory(autoSaveFolder);
+            DrawnPaths.SaveAsBinary(autoSavePath);
+        }
+        catch (IOException)
+        {
+        }
+    }
+
+    private void LoadAutoSave()
+    {
+        DrawnPaths paths;
+        try
+        {
+            paths = DrawnPaths.LoadFromBinary(autoSavePath);
+        }
+        catch (IOException)
+        {
+            return;
+        }
+        CanvasSize = paths.canvasSize;
+        completePaths.Clear();
+        completePaths.AddRange(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
     }
 
     [RelayCommand]
