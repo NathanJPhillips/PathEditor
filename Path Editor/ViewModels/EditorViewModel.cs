@@ -40,10 +40,10 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     public IEnumerable<DrawablePath> Paths =>
         currentPath is null || currentPath.Points.Count < 2 ? completePaths : completePaths.Append(currentPath);
 
-    private readonly List<DrawablePath> undonePaths = [];
-
     public DrawnPaths DrawnPaths =>
         new([.. Paths.Select(DrawablePath.ToDrawnPath)], CanvasSize);
+
+    public UndoViewModel UndoStack { get; } = new();
 
     public event Action<DrawablePath>? PathAdded;
 
@@ -56,13 +56,23 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [RelayCommand]
     private void New()
     {
-        completePaths.Clear();
-        currentPath = null;
-        undonePaths.Clear();
-        FilePath = null;
-        RedrawRequired?.Invoke();
-        UndoCommand?.NotifyCanExecuteChanged();
-        RedoCommand?.NotifyCanExecuteChanged();
+        CompleteCurrentPath();
+        DrawablePath[] oldPaths = [.. Paths];
+        string? oldFilePath = FilePath;
+        UndoStack.Do(
+            "New Picture",
+            () =>
+            {
+                Debug.Assert(currentPath is null);
+                completePaths.Clear();
+                FilePath = null;
+                RedrawRequired?.Invoke();
+            },
+            () =>
+            {
+                UndoPathChanges(oldPaths);
+                FilePath = oldFilePath;
+            });
     }
 
     [RelayCommand]
@@ -96,11 +106,26 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         }
 
         CompleteCurrentPath();
-        CanvasSize = paths.canvasSize;
-        completePaths.Clear();
-        completePaths.AddRange(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
-        FilePath = filePath;
-        RedrawRequired?.Invoke();
+        DrawablePath[] oldPaths = [.. Paths];
+        string? oldFilePath = FilePath;
+        Size oldCanvasSize = CanvasSize;
+        UndoStack.Do(
+            "Open Picture",
+            () =>
+            {
+                Debug.Assert(currentPath is null);
+                CanvasSize = paths.canvasSize;
+                completePaths.Clear();
+                completePaths.AddRange(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
+                FilePath = filePath;
+                RedrawRequired?.Invoke();
+            },
+            () =>
+            {
+                UndoPathChanges(oldPaths);
+                CanvasSize = oldCanvasSize;
+                FilePath = oldFilePath;
+            });
     }
 
     [RelayCommand]
@@ -127,37 +152,6 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [RelayCommand]
     private void Exit() => Navigation.Close();
 
-    [RelayCommand(CanExecute = nameof(CanUndo))]
-    private void Undo()
-    {
-        CompleteCurrentPath();
-        if (completePaths.Count != 0)
-        {
-            DrawablePath removedPath = completePaths[^1];
-            completePaths.RemoveAt(completePaths.Count - 1);
-            PathRemoved?.Invoke(removedPath);
-            undonePaths.Add(removedPath);
-            UndoCommand?.NotifyCanExecuteChanged();
-            RedoCommand?.NotifyCanExecuteChanged();
-        }
-    }
-    private bool CanUndo() => DrawnPaths.drawnPaths.Length != 0;
-
-    [RelayCommand(CanExecute = nameof(CanRedo))]
-    private void Redo()
-    {
-        CompleteCurrentPath();
-        if (undonePaths.Count == 0)
-            return;
-        DrawablePath addedPath = undonePaths[^1];
-        undonePaths.RemoveAt(undonePaths.Count - 1);
-        completePaths.Add(addedPath);
-        PathAdded?.Invoke(addedPath);
-        UndoCommand?.NotifyCanExecuteChanged();
-        RedoCommand?.NotifyCanExecuteChanged();
-    }
-    private bool CanRedo() => undonePaths.Count != 0;
-
     public void ProcessPoint(Point point, InputAction action)
     {
         if (action == InputAction.Down)
@@ -165,9 +159,9 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 
         if (currentPath is not { Points: List<Point> currentPoints })
         {
+            UndoStack.StartToDo();
             currentPath = new([point], CurrentStrokeColor, CurrentStrokeThickness);
             PathAdded?.Invoke(currentPath);
-            UndoCommand?.NotifyCanExecuteChanged();
         }
         else if (currentPoints[^1] != point)
         {
@@ -185,10 +179,25 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         Rect bounds = GetBounds();
         if (bounds.IsEmpty)
             return;
-        CanvasSize = bounds.Size;
-        MapPaths(
-            path =>
-            path with { Points = [.. path.Points.Select(point => (Point)(point - bounds.TopLeft))] });
+
+        CompleteCurrentPath();
+        DrawablePath[] oldPaths = [.. Paths];
+        Size oldCanvasSize = CanvasSize;
+        UndoStack.Do(
+            "Crop to Paths",
+            () =>
+            {
+                Debug.Assert(currentPath is null);
+                CanvasSize = bounds.Size;
+                MapPaths(
+                    path =>
+                    path with { Points = [.. path.Points.Select(point => (Point)(point - bounds.TopLeft))] });
+            },
+            () =>
+            {
+                UndoPathChanges(oldPaths);
+                CanvasSize = oldCanvasSize;
+            });
     }
 
     [RelayCommand]
@@ -209,21 +218,35 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
             offset.Y = (canvasSize.Height - CanvasSize.Height * scale.Y) / 2;
         }
         double thicknessScale = (scale.X + scale.Y) / 2;
-        MapPaths(
-            path =>
-            path with
+        CompleteCurrentPath();
+        DrawablePath[] oldPaths = [.. Paths];
+        Size oldCanvasSize = CanvasSize;
+        UndoStack.Do(
+            "Resize Canvas",
+            () =>
             {
-                Points =
-                    [..
-                        path.Points.Select(
-                            point =>
-                            new Point(
-                                point.X * scale.X + offset.X,
-                                point.Y * scale.Y + offset.Y))
-                    ],
-                StrokeThickness = path.StrokeThickness * thicknessScale,
+                Debug.Assert(currentPath is null);
+                MapPaths(
+                    path =>
+                    path with
+                    {
+                        Points =
+                            [..
+                                path.Points.Select(
+                                    point =>
+                                    new Point(
+                                        point.X * scale.X + offset.X,
+                                        point.Y * scale.Y + offset.Y))
+                            ],
+                        StrokeThickness = path.StrokeThickness * thicknessScale,
+                    });
+                CanvasSize = canvasSize;
+            },
+            () =>
+            {
+                UndoPathChanges(oldPaths);
+                CanvasSize = oldCanvasSize;
             });
-        CanvasSize = canvasSize;
     }
 
     [RelayCommand]
@@ -232,19 +255,29 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         Rect bounds = GetBounds();
         if (bounds.IsEmpty)
             return;
-        MapPaths(
-            path =>
-            path with
+
+        CompleteCurrentPath();
+        DrawablePath[] oldPaths = [.. Paths];
+        UndoStack.Do(
+            "Fit to Canvas",
+            () =>
             {
-                Points =
-                    [..
-                        path.Points.Select(
-                            point =>
-                            new Point(
-                                (point.X  - bounds.Left) / bounds.Width * CanvasSize.Width,
-                                (point.Y - bounds.Top) / bounds.Height * CanvasSize.Height))
-                    ],
-            });
+                Debug.Assert(currentPath is null);
+                MapPaths(
+                    path =>
+                    path with
+                    {
+                        Points =
+                            [..
+                                path.Points.Select(
+                                    point =>
+                                    new Point(
+                                        (point.X  - bounds.Left) / bounds.Width * CanvasSize.Width,
+                                        (point.Y - bounds.Top) / bounds.Height * CanvasSize.Height))
+                            ],
+                    });
+            },
+            () => UndoPathChanges(oldPaths));
     }
 
     [RelayCommand]
@@ -253,10 +286,21 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         Rect bounds = GetBounds();
         if (bounds.IsEmpty)
             return;
+
         Point pathCenter = new(bounds.Left + bounds.Width / 2, bounds.Top + bounds.Height / 2);
         Point canvasCenter = new(CanvasSize.Width / 2, CanvasSize.Height / 2);
         Vector offset = canvasCenter - pathCenter;
-        MapPaths(path => path with { Points = [.. path.Points.Select(point => point + offset)] });
+
+        CompleteCurrentPath();
+        DrawablePath[] oldPaths = [.. Paths];
+        UndoStack.Do(
+            "Center on Canvas",
+            () =>
+            {
+                Debug.Assert(currentPath is null);
+                MapPaths(path => (path with { Points = [.. path.Points.Select(point => point + offset)] }));
+            },
+            () => UndoPathChanges(oldPaths));
     }
 
     private void DoSave(string filePath)
@@ -286,6 +330,15 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         }
     }
 
+    /// <summary>
+    /// Completes the current path and adds it to the list of completed paths.
+    /// Undoing this action will remove the path from the list of completed paths.
+    /// Redoing this action will add the path back to the list of completed paths.
+    /// </summary>
+    /// <remarks>
+    /// Undoing while a new path is being drawn will remove the new path from the view as well as this one.
+    /// Starting to draw a new path will remove the option to redo this action.
+    /// </remarks>
     private void CompleteCurrentPath()
     {
         if (currentPath is not DrawablePath path)
@@ -301,10 +354,25 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
             return;
         }
 
-        completePaths.Add(path);
-        PathAdded?.Invoke(path);
-        undonePaths.Clear();
-        RedoCommand?.NotifyCanExecuteChanged();
+        UndoStack.Do(
+            "Add Path",
+            () =>
+            {
+                Debug.Assert(currentPath is null);
+                completePaths.Add(path);
+                PathAdded?.Invoke(path);
+            },
+            () =>
+            {
+                if (currentPath is not null)
+                {
+                    // If a new path is being drawn then undo it too
+                    PathRemoved?.Invoke(currentPath);
+                    currentPath = null;
+                }
+                completePaths.Remove(path);
+                PathRemoved?.Invoke(path);
+            });
     }
 
     private Rect GetBounds()
@@ -330,6 +398,14 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         completePaths.Clear();
         completePaths.AddRange(oldPaths.Select(projection));
         currentPath = currentPath is null ? null : projection(currentPath);
+        RedrawRequired?.Invoke();
+    }
+
+    private void UndoPathChanges(DrawablePath[] oldPaths)
+    {
+        currentPath = null;     // Undo any partially drawn path
+        completePaths.Clear();
+        completePaths.AddRange(oldPaths);
         RedrawRequired?.Invoke();
     }
 }
