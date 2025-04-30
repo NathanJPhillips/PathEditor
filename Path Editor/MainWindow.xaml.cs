@@ -1,7 +1,9 @@
-﻿using NobleTech.Products.PathEditor.ViewModels;
+﻿using NobleTech.Products.PathEditor.Utils;
+using NobleTech.Products.PathEditor.ViewModels;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace NobleTech.Products.PathEditor;
 
@@ -91,6 +93,22 @@ partial class MainWindow : Window
             return;
         viewModel.ProcessPoint(e.GetPosition(Canvas), action);
     }
+
+    private void Canvas_MouseEnter(object sender, MouseEventArgs e)
+    {
+        Canvas.Cursor =
+            DataContext is not EditorViewModel viewModel
+                ? Cursors.Arrow
+                : CursorUtils.CreateCircle(
+                        viewModel.CurrentStrokeThickness
+                            * VisualTreeHelper.GetDpi(Canvas).PixelsPerDip
+                            * (Canvas.TransformToAncestor(this) is MatrixTransform transform
+                                ? transform.Matrix.M11 // M11 is the X-axis scale
+                                : 1),
+                        viewModel.CurrentStrokeColor);
+    }
+
+    private void Canvas_MouseLeave(object sender, MouseEventArgs e) => Canvas.Cursor = Cursors.Arrow;
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
