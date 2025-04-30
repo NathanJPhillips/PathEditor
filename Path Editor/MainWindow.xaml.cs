@@ -1,4 +1,5 @@
 ﻿using NobleTech.Products.PathEditor.ViewModels;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 
@@ -6,6 +7,9 @@ namespace NobleTech.Products.PathEditor;
 
 partial class MainWindow : Window
 {
+    private static readonly TimeSpan autoSaveInterval = TimeSpan.FromMinutes(3);
+
+    private readonly Timer timer;
     private readonly Views views;
 
     public MainWindow()
@@ -13,6 +17,8 @@ partial class MainWindow : Window
         InitializeComponent();
         views = new(Canvas);
         DataContextChanged += OnDataContextChanged;
+        Closing += OnClosing;
+        timer = new(state => Dispatcher.Invoke(AutoSave), null, autoSaveInterval, autoSaveInterval);
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -92,5 +98,17 @@ partial class MainWindow : Window
         if (DataContext is not EditorViewModel viewModel)
             return;
         viewModel.ProcessPoint(e.GetPosition(Canvas), inputEvent);
+    }
+
+    private void OnClosing(object? sender, CancelEventArgs e)
+    {
+        timer.Dispose();
+        AutoSave();
+    }
+
+    private void AutoSave()
+    {
+        if (DataContext is EditorViewModel viewModel)
+            viewModel.AutoSave();
     }
 }

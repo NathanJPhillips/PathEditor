@@ -18,6 +18,9 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// </summary>
     private const string fileFilter = "Paths Files|*.path|C# Source Files|*.cs|All Files|*.*";
 
+    private static readonly string autoSaveFolder = Path.Combine(Path.GetTempPath(), "Path Editor");
+    private static readonly string autoSavePath = Path.Combine(autoSaveFolder, "AutoSave.path");
+
     /// <summary>
     /// The current path being drawn on the canvas.
     /// </summary>
@@ -28,6 +31,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// </summary>
     public EditorViewModel()
     {
+        LoadAutoSave();
         Paths.Added += (paths, path) => OnPathsChanged();
         Paths.Removed += (paths, path) => OnPathsChanged();
         Paths.Reset += paths => OnPathsChanged();
@@ -192,6 +196,40 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         FileDialogViewModel viewModel = new() { Filter = fileFilter, FilePath = FilePath };
         if (Navigation.ShowDialog(NavigationDestinations.Save, viewModel) == true && viewModel.FilePath is not null)
             DoSave(viewModel.FilePath);
+    }
+
+    /// <summary>
+    /// Perform an auto-save of the current canvas.
+    /// </summary>
+    public void AutoSave()
+    {
+        try
+        {
+            Directory.CreateDirectory(autoSaveFolder);
+            DrawnPaths.SaveAsBinary(autoSavePath);
+        }
+        catch (IOException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Load the auto-saved canvas from the temporary file.
+    /// </summary>
+    private void LoadAutoSave()
+    {
+        DrawnPaths paths;
+        try
+        {
+            paths = DrawnPaths.LoadFromBinary(autoSavePath);
+        }
+        catch (IOException)
+        {
+            return;
+        }
+        CanvasSize = paths.canvasSize;
+        this.paths.ResetTo(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
+        currentPath = null;
     }
 
     /// <summary>
