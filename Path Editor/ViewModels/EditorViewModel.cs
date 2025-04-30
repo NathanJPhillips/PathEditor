@@ -28,6 +28,8 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// </summary>
     public EditorViewModel()
     {
+        if (AutoSaver.Open() is DrawnPaths paths)
+            Open(paths);
         Paths.CollectionChanged += (sender, args) => OnPathsChanged();
     }
 
@@ -152,9 +154,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
             "Open Picture",
             () =>
             {
-                CanvasSize = paths.canvasSize;
-                this.paths.ResetTo(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
-                currentPath = null;
+                Open(paths);
                 FilePath = filePath;
             },
             () =>
@@ -191,6 +191,11 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         if (Navigation.ShowDialog(NavigationDestinations.Save, viewModel) == true && viewModel.FilePath is not null)
             DoSave(viewModel.FilePath);
     }
+
+    /// <summary>
+    /// Perform an auto-save of the current canvas.
+    /// </summary>
+    public void AutoSave() => AutoSaver.Save(DrawnPaths);
 
     /// <summary>
     /// Close the editor window.
@@ -361,6 +366,13 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
                     path.StrokeColor,
                     path.StrokeThickness)),
             () => UndoPathChanges(oldPaths));
+    }
+
+    private void Open(DrawnPaths paths)
+    {
+        CanvasSize = paths.canvasSize;
+        this.paths.ResetTo(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
+        currentPath = null;
     }
 
     private bool BoundsArentEmpty() => !GetBounds().IsZeroSize();
