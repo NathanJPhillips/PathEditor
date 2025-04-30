@@ -10,6 +10,13 @@
         d:DataContext="{d:DesignInstance viewmodels:EditorViewModel}"
         Title="{Binding FileName, StringFormat='Path Editor - {0}'}" Height="450" Width="800">
     <Window.Resources>
+        <Style TargetType="AccessText">
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="DarkGray" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style TargetType="xctk:ColorPicker">
             <Setter Property="Width" Value="50" />
         </Style>
@@ -18,8 +25,8 @@
         <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}" />
         <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}" />
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
-        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
-        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
+        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoStack.UndoCommand}" />
+        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding UndoStack.RedoCommand}" />
     </Window.InputBindings>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
@@ -32,8 +39,22 @@
                 <MenuItem Header="_Close" Command="{Binding CloseCommand}" InputGestureText="Alt+F4" />
             </MenuItem>
             <MenuItem Header="_Edit">
-                <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGestureText="Ctrl+Z" />
-                <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGestureText="Ctrl+Y" />
+                <MenuItem Command="{Binding UndoStack.UndoCommand}" InputGestureText="Ctrl+Z">
+                    <MenuItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <AccessText>_Undo</AccessText>
+                            <TextBlock Text="{Binding UndoStack.NextUndoName}" FontStyle="Italic" Margin="5,0,0,0" />
+                        </StackPanel>
+                    </MenuItem.Header>
+                </MenuItem>
+                <MenuItem Command="{Binding UndoStack.RedoCommand}" InputGestureText="Ctrl+Y">
+                    <MenuItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <AccessText>_Redo</AccessText>
+                            <TextBlock Text="{Binding UndoStack.NextRedoName}" FontStyle="Italic" Margin="5,0,0,0" />
+                        </StackPanel>
+                    </MenuItem.Header>
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="_Image">
                 <MenuItem Header="_Crop to Paths" Command="{Binding CropToPathsCommand}" />
