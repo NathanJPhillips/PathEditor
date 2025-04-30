@@ -1,21 +1,21 @@
-﻿using NobleTech.Products.PathEditor.Utils;
-using NobleTech.Products.PathEditor.ViewModels;
-using System.Collections.Specialized;
+﻿using NobleTech.Products.PathEditor.ViewModels;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
 
 namespace NobleTech.Products.PathEditor;
 
 partial class MainWindow : Window
 {
+    private readonly Views views;
+
     private PolyLineSegment? currentSegment;
 
     public MainWindow()
     {
         InitializeComponent();
+        views = new(Canvas);
         DataContextChanged += OnDataContextChanged;
     }
 
@@ -23,18 +23,46 @@ partial class MainWindow : Window
     {
         if (e.OldValue is EditorViewModel oldViewModel)
         {
-            oldViewModel.CompletePaths.CollectionChanged -= (sender, e) => Redraw();
-            oldViewModel.PropertyChanging -= ViewModel_PropertyChanging;
+            oldViewModel.CompletedPathAdded -= AddCompletedPath;
+            oldViewModel.CompletedPathRemoved -= RemoveCompletedPath;
+            oldViewModel.CurrentPathExtended -= ExtendCurrentPath;
+            oldViewModel.RedrawRequired -= Redraw;
             oldViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         }
         if (e.NewValue is EditorViewModel newViewModel)
         {
-            newViewModel.CompletePaths.CollectionChanged += (sender, e) => Redraw();
-            newViewModel.PropertyChanging += ViewModel_PropertyChanging;
+            newViewModel.CompletedPathAdded += AddCompletedPath;
+            newViewModel.CompletedPathRemoved += RemoveCompletedPath;
+            newViewModel.CurrentPathExtended += ExtendCurrentPath;
+            newViewModel.RedrawRequired += Redraw;
             newViewModel.PropertyChanged += ViewModel_PropertyChanged;
         }
         Redraw();
     }
+
+    private void AddCompletedPath(DrawablePath path) => views.Add(path);
+
+    private void RemoveCompletedPath(DrawablePath path) => views.Remove(path);
+
+    private void ExtendCurrentPath(Point point) => currentSegment?.Points.Add(point);
+
+    private void Redraw()
+    {
+        views.Clear();
+        if (DataContext is not EditorViewModel viewModel)
+            return;
+        views.AddRange(viewModel.CompletePaths);
+        DrawCurrentPath(viewModel.CurrentPath);
+    }
+
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is EditorViewModel viewModel && e.PropertyName == nameof(viewModel.CurrentPath))
+            DrawCurrentPath(viewModel.CurrentPath);
+    }
+
+    private void DrawCurrentPath(DrawablePath? currentPath) =>
+        currentSegment = currentPath is null ? null : views.Add(currentPath);
 
     private void Canvas_TouchEvent(object sender, TouchEventArgs e)
     {
@@ -54,93 +82,6 @@ partial class MainWindow : Window
                 TouchAction.Down => InputAction.Down,
                 _ => InputAction.Move,
             });
-
-    private void Redraw()
-    {
-        Canvas.Children.Clear();
-        if (DataContext is not EditorViewModel viewModel)
-            return;
-        Canvas.Children.AddRange(viewModel.CompletePaths.Select(GetView));
-        DrawCurrentPath(viewModel.CurrentPath);
-    }
-
-    private void ViewModel_PropertyChanging(object? sender, PropertyChangingEventArgs e)
-    {
-        if (sender is not EditorViewModel viewModel)
-            return;
-        if (e.PropertyName == nameof(viewModel.CurrentPath))
-        {
-            if (viewModel.CurrentPath is not null)
-                viewModel.CurrentPath.Points.CollectionChanged -= CurrentPathPoints_CollectionChanged;
-            currentSegment = null;
-        }
-    }
-
-    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (sender is not EditorViewModel viewModel)
-            return;
-        if (e.PropertyName == nameof(viewModel.CurrentPath))
-        {
-            DrawCurrentPath(viewModel.CurrentPath);
-        }
-    }
-
-    private void DrawCurrentPath(DrawablePath? currentPath)
-    {
-        if (currentPath is null)
-        {
-            currentSegment = null;
-            return;
-        }
-        currentSegment = new(currentPath.Points.ToArray()[1..], true);
-        Canvas.Children.Add(GetView(
-            currentPath.Points[0],
-            currentPath.StrokeColor,
-            currentPath.StrokeThickness,
-            currentSegment));
-        currentPath.Points.CollectionChanged += CurrentPathPoints_CollectionChanged;
-    }
-
-    private void CurrentPathPoints_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        switch (e.Action)
-        {
-        case NotifyCollectionChangedAction.Add:
-            if (currentSegment is not null && e.NewItems is not null)
-                currentSegment.Points.AddRange(e.NewItems.OfType<Point>());
-            break;
-        }
-    }
-
-    private static Path GetView(DrawablePath drawnPath) =>
-        GetView(
-            drawnPath.Points[0],
-            drawnPath.StrokeColor,
-            drawnPath.StrokeThickness,
-            new PolyLineSegment(drawnPath.Points.ToArray()[1..], true));
-
-    private static Path GetView(Point startPoint, Color strokeColor, double strokeThickness, PathSegment segment) =>
-        new()
-        {
-            Stroke = new SolidColorBrush(strokeColor),
-            StrokeThickness = strokeThickness,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap = PenLineCap.Round,
-            StrokeLineJoin = PenLineJoin.Round,
-            Data =
-                    new PathGeometry()
-                    {
-                        Figures =
-                            [
-                                new PathFigure()
-                                    {
-                                        StartPoint = startPoint,
-                                        Segments = [segment],
-                                    },
-                            ],
-                    },
-        };
 
     private void Canvas_MouseMove(object sender, MouseEventArgs e)
     {

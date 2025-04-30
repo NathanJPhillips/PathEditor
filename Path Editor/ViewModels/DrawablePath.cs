@@ -1,10 +1,9 @@
-﻿using System.Collections.ObjectModel;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media;
 
 namespace NobleTech.Products.PathEditor.ViewModels;
 
-public record DrawablePath(ObservableCollection<Point> Points, Color StrokeColor, double StrokeThickness)
+public record DrawablePath(List<Point> Points, Color StrokeColor, double StrokeThickness)
 {
     public static DrawnPaths.DrawnPath ToDrawnPath(DrawablePath drawablePath) =>
         new([.. drawablePath.Points], drawablePath.StrokeColor, drawablePath.StrokeThickness);
