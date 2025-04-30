@@ -80,6 +80,7 @@
                 <Canvas x:Name="Canvas" Width="{Binding CanvasSize.Width}" Height="{Binding CanvasSize.Height}"
                         TouchDown="Canvas_TouchEvent" TouchMove="Canvas_TouchEvent" TouchUp="Canvas_TouchEvent"
                         MouseMove="Canvas_MouseMove" MouseLeftButtonDown="Canvas_MouseLeftButtonDown" MouseLeftButtonUp="Canvas_MouseLeftButtonUp"
+                        MouseEnter="Canvas_MouseEnter" MouseLeave="Canvas_MouseLeave"
                         Background="White" />
             </Viewbox>
         </Border>
