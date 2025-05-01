@@ -36,14 +36,26 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     public string FileName =>
         FilePath is null ? "[Untitled]" : Path.GetFileNameWithoutExtension(FilePath);
 
-    [ObservableProperty]
-    private Size canvasSize = new(800, 600);
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanvasWidth), nameof(CanvasHeight))]
+    private Size canvasSize = new(1920, 1080);
+
+    public double CanvasWidth
+    {
+        get => CanvasSize.Width;
+        set => CanvasSize = CanvasSize with { Width = value };
+    }
+
+    public double CanvasHeight
+    {
+        get => CanvasSize.Height;
+        set => CanvasSize = CanvasSize with { Height = value };
+    }
 
     [ObservableProperty]
-    private Color currentStrokeColor = Colors.Black;
+    private Color currentStrokeColor = Colors.Blue;
 
     [ObservableProperty]
-    private double currentStrokeThickness = 5;
+    private double currentStrokeThickness = 50;
 
     public IEnumerable<DrawablePath> Paths =>
         currentPath is null || currentPath.Points.Count < 2 ? completePaths : completePaths.Append(currentPath);
@@ -60,6 +72,12 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     public event Action<DrawablePath, Point>? PathExtended;
 
     public event Action? RedrawRequired;
+
+    [RelayCommand]
+    private void SetColor(Color color) => CurrentStrokeColor = color;
+
+    [RelayCommand]
+    private void SetThickness(double thickness) => CurrentStrokeThickness = thickness;
 
     [RelayCommand]
     private void New()
@@ -186,7 +204,17 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     }
 
     [RelayCommand]
-    private void Exit() => Navigation.Close();
+    private void Exit()
+    {
+        Navigation.Close();
+        navigation = null;
+    }
+
+    [RelayCommand]
+    private void BabyPaintView() => Navigation.ReplaceWindow("BabyPaint", this);
+
+    [RelayCommand]
+    private void ExitBabyPaintView() => Navigation.ReplaceWindow("PathEditor", this);
 
     public void ProcessPoint(Point point, InputAction action)
     {

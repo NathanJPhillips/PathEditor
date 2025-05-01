@@ -3,6 +3,7 @@
 internal interface INavigationService
 {
     void ShowWindow(string windowName, object viewModel);
+    void ReplaceWindow(string windowName, object viewModel);
     bool? ShowDialog(string windowName, object viewModel);
     bool? DialogResult { get; set; }
     void Close();
