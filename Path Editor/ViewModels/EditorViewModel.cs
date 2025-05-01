@@ -252,6 +252,12 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     private void ExitBabyPaintView() => Navigation.ReplaceWindow(NavigationDestinations.PathEditor, this);
 
     /// <summary>
+    /// Open the animation preview window.
+    /// </summary>
+    [RelayCommand]
+    private void PreviewAnimation() => Navigation.ShowWindow(NavigationDestinations.Animation, DrawnPaths);
+
+    /// <summary>
     /// Processes a mouse or touch event at a point on the canvas.
     /// </summary>
     /// <param name="point">The point on the canvas that received a mouse or touch event.</param>
