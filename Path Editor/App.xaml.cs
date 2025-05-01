@@ -27,6 +27,7 @@ public partial class App : Application
         navigation.RegisterWindow<MainWindow>(NavigationDestinations.PathEditor);
         navigation.RegisterWindow<ResizeDialog>(NavigationDestinations.Resize);
         navigation.RegisterWindow<BabyPaintWindow>(NavigationDestinations.BabyPaint);
+        navigation.RegisterWindow<AnimationWindow>(NavigationDestinations.Animation);
         MainWindow = navigation.ShowWindow(NavigationDestinations.PathEditor, new EditorViewModel());
     }
 }

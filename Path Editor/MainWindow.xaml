@@ -65,6 +65,7 @@
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Baby Paint" Command="{Binding BabyPaintViewCommand}" InputGestureText="F11" />
+                <MenuItem Header="_Preview Animation" Command="{Binding PreviewAnimationCommand}" />
             </MenuItem>
             <StackPanel Orientation="Horizontal">
                 <Border Width="1" Height="20" Background="Gray" VerticalAlignment="Center" />
