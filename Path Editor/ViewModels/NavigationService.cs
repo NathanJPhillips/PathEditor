@@ -22,12 +22,7 @@ internal class NavigationService : INavigationService
 
     public Window ShowWindow(NavigationDestinations destination, object viewModel)
     {
-        if (!windows.TryGetValue(destination, out Type? windowType))
-            throw new ArgumentException($"Window with name {destination} not registered.");
-        var newWindow = (Window)Activator.CreateInstance(windowType)!;
-        if (viewModel is INavigationViewModel navigationViewModel)
-            navigationViewModel.Navigation = new NavigationService(windows, newWindow);
-        newWindow.DataContext = viewModel;
+        Window newWindow = CreateWindow(destination, viewModel);
         newWindow.Owner = window;
         newWindow.Show();
         return newWindow;
@@ -35,6 +30,14 @@ internal class NavigationService : INavigationService
 
     void INavigationService.ShowWindow(NavigationDestinations destination, object viewModel) =>
         ShowWindow(destination, viewModel);
+
+    void INavigationService.ReplaceWindow(NavigationDestinations destination, object viewModel)
+    {
+        if (window is null)
+            throw new InvalidOperationException("No window is currently open.");
+        CreateWindow(destination, viewModel).Show();
+        window.Close();
+    }
 
     bool? INavigationService.ShowDialog(NavigationDestinations destination, object viewModel)
     {
@@ -142,5 +145,16 @@ internal class NavigationService : INavigationService
         if (windows.ContainsKey(destination))
             throw new ArgumentException($"Window with name {destination} already registered.");
         windows[destination] = typeof(TWindow);
+    }
+
+    private Window CreateWindow(NavigationDestinations destination, object viewModel)
+    {
+        if (!windows.TryGetValue(destination, out Type? windowType))
+            throw new ArgumentException($"Window with name {destination} not registered.");
+        var newWindow = (Window)Activator.CreateInstance(windowType)!;
+        if (viewModel is INavigationViewModel navigationViewModel)
+            navigationViewModel.Navigation = new NavigationService(windows, newWindow);
+        newWindow.DataContext = viewModel;
+        return newWindow;
     }
 }
