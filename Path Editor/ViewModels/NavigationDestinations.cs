@@ -3,6 +3,7 @@
 internal enum NavigationDestinations
 {
     PathEditor,
+    BabyPaint,
     MessageBox,
     Open,
     Save,

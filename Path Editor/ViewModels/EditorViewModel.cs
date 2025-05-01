@@ -62,20 +62,38 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// <summary>
     /// The size of the drawing canvas.
     /// </summary>
-    [ObservableProperty]
-    private Size canvasSize = new(800, 600);
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanvasWidth), nameof(CanvasHeight))]
+    private Size canvasSize = new(1920, 1080);
+
+    /// <summary>
+    /// The width of the drawing canvas.
+    /// </summary>
+    public double CanvasWidth
+    {
+        get => CanvasSize.Width;
+        set => CanvasSize = CanvasSize with { Width = value };
+    }
+
+    /// <summary>
+    /// The height of the drawing canvas.
+    /// </summary>
+    public double CanvasHeight
+    {
+        get => CanvasSize.Height;
+        set => CanvasSize = CanvasSize with { Height = value };
+    }
 
     /// <summary>
     /// The color of the stroke used to draw new paths.
     /// </summary>
     [ObservableProperty]
-    private Color currentStrokeColor = Colors.Black;
+    private Color currentStrokeColor = Colors.Blue;
 
     /// <summary>
     /// The thickness of the stroke used to draw new paths.
     /// </summary>
     [ObservableProperty]
-    private double currentStrokeThickness = 5;
+    private double currentStrokeThickness = 50;
 
     private readonly ObservableList<DrawablePath, List<DrawablePath>> paths = [];
     /// <summary>
@@ -92,6 +110,20 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// The undo stack used to manage undo and redo actions.
     /// </summary>
     public UndoViewModel UndoStack { get; } = new();
+
+    /// <summary>
+    /// Set the current stroke color to the specified color.
+    /// </summary>
+    /// <param name="color">The color to set the stroke to.</param>
+    [RelayCommand]
+    private void SetColor(Color color) => CurrentStrokeColor = color;
+
+    /// <summary>
+    /// Set the current stroke thickness to the specified value.
+    /// </summary>
+    /// <param name="thickness">The thickness to set the stroke to.</param>
+    [RelayCommand]
+    private void SetThickness(double thickness) => CurrentStrokeThickness = thickness;
 
     /// <summary>
     /// Create a new, empty canvas.
@@ -206,6 +238,18 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         Navigation.Close();
         navigation = null;
     }
+
+    /// <summary>
+    /// Open the Baby Paint full-screen view.
+    /// </summary>
+    [RelayCommand]
+    private void BabyPaintView() => Navigation.ReplaceWindow(NavigationDestinations.BabyPaint, this);
+
+    /// <summary>
+    /// Open the default Path Editor window.
+    /// </summary>
+    [RelayCommand]
+    private void ExitBabyPaintView() => Navigation.ReplaceWindow(NavigationDestinations.PathEditor, this);
 
     /// <summary>
     /// Processes a mouse or touch event at a point on the canvas.
