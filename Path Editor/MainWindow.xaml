@@ -62,6 +62,7 @@
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Baby Paint" Command="{Binding BabyPaintViewCommand}" InputGestureText="F11" />
+                <MenuItem Header="_Preview Animation" Command="{Binding PreviewAnimationCommand}" />
             </MenuItem>
             <xctk:DoubleUpDown Minimum="1" Maximum="100" Value="{Binding CurrentStrokeThickness}" Width="50" Increment="1" />
             <xctk:ColorPicker SelectedColor="{Binding CurrentStrokeColor}" />

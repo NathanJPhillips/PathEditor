@@ -216,6 +216,9 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [RelayCommand]
     private void ExitBabyPaintView() => Navigation.ReplaceWindow("PathEditor", this);
 
+    [RelayCommand]
+    private void PreviewAnimation() => Navigation.ShowWindow("Animation", DrawnPaths);
+
     public void ProcessPoint(Point point, InputAction action)
     {
         if (action == InputAction.Down)
