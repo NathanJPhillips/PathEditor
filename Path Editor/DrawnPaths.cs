@@ -146,6 +146,28 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         BitmapUtils.SaveAs(canvas, (int)canvasSize.Width, (int)canvasSize.Height, encoder, stream);
     }
 
+    public void Print(string name)
+    {
+        PrintDialog printDialog = new();
+        if (printDialog.ShowDialog() == true)
+        {
+            // Create a canvas and draw the paths
+            Canvas canvas = new() { Background = Brushes.Transparent };
+            Draw(canvas);
+
+            // Get the printable area and calculate the scale factor
+            double scaleX = printDialog.PrintableAreaWidth / canvasSize.Width;
+            double scaleY = printDialog.PrintableAreaHeight / canvasSize.Height;
+            double scale = Math.Min(scaleX, scaleY); // Maintain aspect ratio
+
+            // Apply a scale transform to the canvas
+            canvas.LayoutTransform = new ScaleTransform(scale, scale);
+
+            // Print the scaled canvas
+            printDialog.PrintVisual(canvas, $"Path Editor - {name}");
+        }
+    }
+
     public void Draw(Canvas canvas)
     {
         canvas.Width = canvasSize.Width;

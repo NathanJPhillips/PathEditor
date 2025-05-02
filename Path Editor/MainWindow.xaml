@@ -24,6 +24,7 @@
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoStack.UndoCommand}" />
         <KeyBinding Key="Y" Modifiers="Control" Command="{Binding UndoStack.RedoCommand}" />
+        <KeyBinding Key="P" Modifiers="Control" Command="{Binding PrintCommand}" />
         <KeyBinding Key="F11" Command="{Binding BabyPaintViewCommand}" />
     </Window.InputBindings>
     <DockPanel>
@@ -33,6 +34,7 @@
                 <MenuItem Header="_Open" Command="{Binding OpenCommand}" InputGestureText="Ctrl+O" />
                 <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGestureText="Ctrl+S" />
                 <MenuItem Header="Save _As" Command="{Binding SaveAsCommand}" />
+                <MenuItem Header="_Print" Command="{Binding PrintCommand}" InputGestureText="Ctrl+P" />
                 <Separator />
                 <MenuItem Header="E_xit" Command="{Binding ExitCommand}" InputGestureText="Alt+F4" />
             </MenuItem>

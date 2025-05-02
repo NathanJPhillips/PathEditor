@@ -225,6 +225,9 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         }
     }
 
+    [RelayCommand]
+    private void Print() => DrawnPaths.Print(FileName);
+
     public void AutoSave()
     {
         try
