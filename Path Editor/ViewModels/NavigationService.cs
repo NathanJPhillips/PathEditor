@@ -96,6 +96,7 @@ internal class NavigationService : INavigationService
                 };
             bool? openResult = openFileDialog.ShowDialog(window);
             openFileDialogViewModel.FilePath = openFileDialog.FileName;
+            openFileDialogViewModel.SelectedFilterIndex = openFileDialog.FilterIndex - 1;
             return openResult;
         case NavigationDestinations.Save:
             if (viewModel is not FileDialogViewModel saveFileDialogViewModel)
@@ -109,6 +110,7 @@ internal class NavigationService : INavigationService
                 };
             bool? saveResult = saveFileDialog.ShowDialog(window);
             saveFileDialogViewModel.FilePath = saveFileDialog.FileName;
+            saveFileDialogViewModel.SelectedFilterIndex = saveFileDialog.FilterIndex - 1;
             return saveResult;
         default:
             if (!windows.TryGetValue(destination, out Type? windowType))
