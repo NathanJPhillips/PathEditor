@@ -22,7 +22,8 @@ internal static class AutoSaver
             // Create Path Editor temporary folder if it doesn't exist
             Directory.CreateDirectory(temporaryFolder);
             // Save the current canvas to a temporary file
-            paths.SaveAsBinary(autoSavePath);
+            using FileStream stream = new(autoSavePath, FileMode.Create);
+            paths.SaveAsBinary(stream);
         }
         catch (IOException)
         {
@@ -37,7 +38,8 @@ internal static class AutoSaver
     {
         try
         {
-            return DrawnPaths.LoadFromBinary(autoSavePath);
+            using FileStream stream = new(autoSavePath, FileMode.Open);
+            return DrawnPaths.LoadFromBinary(stream);
         }
         catch (IOException)
         {

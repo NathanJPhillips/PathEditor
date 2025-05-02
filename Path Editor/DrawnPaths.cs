@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Path = System.Windows.Shapes.Path;
 
@@ -55,11 +56,10 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
     /// <summary>
     /// Load a <see cref="DrawnPaths"/> object from a binary ".paths" file.
     /// </summary>
-    /// <param name="filePath">The path to the binary file to load.</param>
+    /// <param name="stream">The stream to read from.</param>
     /// <returns>The loaded <see cref="DrawnPaths"/> object.</returns>
-    public static DrawnPaths LoadFromBinary(string filePath)
+    public static DrawnPaths LoadFromBinary(Stream stream)
     {
-        using FileStream stream = new(filePath, FileMode.Open);
         using BinaryReader reader = new(stream);
         double width = reader.ReadDouble();
         double height = reader.ReadDouble();
@@ -84,14 +84,13 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
     /// <summary>
     /// Saves the current <see cref="DrawnPaths"/> object to a binary ".paths" file.
     /// </summary>
-    /// <param name="filePath">The file path where the binary file will be saved.</param>
+    /// <param name="stream">The stream to which to write.</param>
     /// <remarks>
     /// The binary file will include the canvas size, the number of paths, and for each path:
     /// the points, stroke color (ARGB), and stroke thickness.
     /// </remarks>
-    public void SaveAsBinary(string filePath)
+    public void SaveAsBinary(Stream stream)
     {
-        using FileStream stream = new(filePath, FileMode.Create);
         using BinaryWriter writer = new(stream);
         writer.Write(canvasSize.Width);
         writer.Write(canvasSize.Height);
@@ -115,7 +114,7 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
     /// <summary>
     /// Loads a <see cref="DrawnPaths"/> object from a C# source file.
     /// </summary>
-    /// <param name="filePath">The file path of the C# source file to load.</param>
+    /// <param name="stream">The stream to read from.</param>
     /// <returns>
     /// A <see cref="DrawnPaths"/> object if the file is successfully parsed; otherwise, null.
     /// </returns>
@@ -124,9 +123,9 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
     /// It parses the file to extract the paths, their points, stroke colors, stroke thicknesses,
     /// and the canvas size. If the file format is invalid or parsing fails, the method returns null.
     /// </remarks>
-    public static DrawnPaths? LoadFromCSharp(string filePath)
+    public static DrawnPaths? LoadFromCSharp(Stream stream)
     {
-        using StreamReader reader = new(filePath);
+        using StreamReader reader = new(stream);
         string? line;
         do
         {
@@ -181,17 +180,18 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
     /// <summary>
     /// Saves the current <see cref="DrawnPaths"/> object as a C# source file.
     /// </summary>
-    /// <param name="filePath">The file path where the C# source file will be saved.</param>
+    /// <param name="stream">The stream to which to write.</param>
+    /// <param name="name">The name of the file, used as the basis for name of the <see cref="DrawnPaths"/> object in the generated C# file.</param>
     /// <remarks>
     /// The generated C# file will include a representation of the <see cref="DrawnPaths"/> object, 
     /// including all paths, their points, stroke colors, and stroke thicknesses, 
     /// as well as the canvas size.
     /// </remarks>
-    public void SaveAsCSharp(string filePath)
+    public void SaveAsCSharp(Stream stream, string name)
     {
-        using StreamWriter writer = new(filePath);
+        using StreamWriter writer = new(stream);
         writer.WriteLine($"    // Created {DateTime.Now} by NobleTech Path Editor");
-        writer.WriteLine($"    DrawnPaths {System.IO.Path.GetFileNameWithoutExtension(filePath).Replace(' ', '_')} =");
+        writer.WriteLine($"    DrawnPaths {name.Replace(' ', '_')} =");
         writer.WriteLine("        new(");
         writer.WriteLine("            [");
         foreach (DrawnPath path in drawnPaths)
@@ -201,6 +201,29 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         }
         writer.WriteLine("            ],");
         writer.WriteLine($"            new({canvasSize.Width}, {canvasSize.Height}));");
+    }
+
+    /// <summary>
+    /// Saves the current <see cref="DrawnPaths"/> object as a bitmap image.
+    /// </summary>
+    /// <param name="encoder">The bitmap encoder to use to save the image.</param>
+    /// <param name="stream">The stream to which to write the image.</param>
+    public void SaveAsBitmap(BitmapEncoder encoder, Stream stream)
+    {
+        Canvas canvas = new() { Background = Brushes.Transparent };
+        Draw(canvas);
+        BitmapUtils.SaveAs(canvas, (int)canvasSize.Width, (int)canvasSize.Height, encoder, stream);
+    }
+
+    /// <summary>
+    /// Draw the paths on the given canvas.
+    /// </summary>
+    /// <param name="canvas">The canvas on which to draw the paths.</param>
+    public void Draw(Canvas canvas)
+    {
+        canvas.Width = canvasSize.Width;
+        canvas.Height = canvasSize.Height;
+        canvas.Children.AddRange(drawnPaths.Select(CreatePath));
     }
 
     /// <summary>
@@ -221,46 +244,29 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         canvas.Width = canvasSize.Width;
         canvas.Height = canvasSize.Height;
 
+        static Path CreatePath(DrawnPath drawnPath, double strokeLength)
+        {
+            Path path = DrawnPaths.CreatePath(drawnPath);
+            path.StrokeDashCap = PenLineCap.Round;
+            path.StrokeDashArray = [strokeLength, strokeLength + 2];
+            path.StrokeDashOffset = strokeLength + 1;
+            return path;
+        }
+
         var paths = (
             from drawnPath in
                 drawnPaths.SelectWithNext(
                     (path, next) =>
                     new
                     {
-                        path.Points,
-                        path.StrokeColor,
-                        path.StrokeThickness,
+                        Path = path,
                         DistanceToNext = next is null ? 0 : DistanceBetween(path.Points[^1], path.Points[0]),
                     })
-            let length = drawnPath.Points.SelectFromPairs(DistanceBetween).Sum()
-            let strokeLength = length / drawnPath.StrokeThickness
+            let length = drawnPath.Path.Points.SelectFromPairs(DistanceBetween).Sum()
             select
                 new
                 {
-                    Path =
-                        new Path()
-                        {
-                            Stroke = new SolidColorBrush(drawnPath.StrokeColor),
-                            StrokeThickness = drawnPath.StrokeThickness,
-                            StrokeStartLineCap = PenLineCap.Round,
-                            StrokeEndLineCap = PenLineCap.Round,
-                            StrokeLineJoin = PenLineJoin.Round,
-                            StrokeDashCap = PenLineCap.Round,
-                            StrokeDashArray = [strokeLength, strokeLength + 2],
-                            StrokeDashOffset = strokeLength + 1,
-                            Data =
-                                new PathGeometry()
-                                {
-                                    Figures =
-                                        [
-                                            new PathFigure()
-                                            {
-                                                StartPoint = drawnPath.Points[0],
-                                                Segments = [ new PolyLineSegment(drawnPath.Points[1..], true) ],
-                                            },
-                                        ],
-                                },
-                        },
+                    Path = CreatePath(drawnPath.Path, length / drawnPath.Path.StrokeThickness),
                     Length = length,
                     drawnPath.DistanceToNext,
                 }).ToArray();
@@ -289,6 +295,33 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         storyboard.Begin();
         return storyboard;
     }
+
+    /// <summary>
+    /// Creates a <see cref="Path"/> object from a <see cref="DrawnPath"/> object.
+    /// </summary>
+    /// <param name="path">The <see cref="DrawnPath"/> object to convert.</param>
+    /// <returns>A <see cref="Path"/> object representing the <see cref="DrawnPath"/>.</returns>
+    private static Path CreatePath(DrawnPath path) =>
+        new()
+        {
+            Stroke = new SolidColorBrush(path.StrokeColor),
+            StrokeThickness = path.StrokeThickness,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round,
+            Data =
+                new PathGeometry()
+                {
+                    Figures =
+                        [
+                            new PathFigure()
+                            {
+                                StartPoint = path.Points[0],
+                                Segments = [ new PolyLineSegment(path.Points[1..], true) ],
+                            },
+                        ],
+                },
+        };
 
     /// <summary>
     /// Calculates the distance between two points.

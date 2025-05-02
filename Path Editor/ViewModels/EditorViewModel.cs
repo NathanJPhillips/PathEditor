@@ -13,10 +13,21 @@ namespace NobleTech.Products.PathEditor.ViewModels;
 /// </summary>
 internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 {
+    private FileInformation? fileInfo;
     /// <summary>
-    /// The filter used to select files in the file dialog.
+    /// The file path and save function of the currently opened file, or null if the file has not yet been saved.
     /// </summary>
-    private const string fileFilter = "Paths Files|*.path|C# Source Files|*.cs|All Files|*.*";
+    private FileInformation? FileInfo
+    {
+        get => fileInfo;
+        set
+        {
+            if (fileInfo == value)
+                return;
+            fileInfo = value;
+            OnPropertyChanged(nameof(FileName));
+        }
+    }
 
     /// <summary>
     /// The current path being drawn on the canvas.
@@ -47,17 +58,10 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     }
 
     /// <summary>
-    /// The path to the file being edited, or null if the file has not yet been saved.
-    /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(FileName))]
-    private string? filePath = null;
-
-    /// <summary>
     /// The name of the file being edited, or "[Untitled]" if no file is open.
     /// </summary>
     public string FileName =>
-        FilePath is null ? "[Untitled]" : Path.GetFileNameWithoutExtension(FilePath);
+        FileInfo?.Path is string filePath ? Path.GetFileNameWithoutExtension(filePath) : "[Untitled]";
 
     /// <summary>
     /// The size of the drawing canvas.
@@ -132,19 +136,19 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     private void New()
     {
         DrawablePath[] oldPaths = [.. Paths];
-        string? oldFilePath = FilePath;
+        FileInformation? oldFileInfo = FileInfo;
         UndoStack.Do(
             "New Picture",
             () =>
             {
                 paths.Clear();
                 currentPath = null;
-                FilePath = null;
+                FileInfo = null;
             },
             () =>
             {
                 UndoPathChanges(oldPaths);
-                FilePath = oldFilePath;
+                FileInfo = oldFileInfo;
             });
     }
 
@@ -154,17 +158,13 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [RelayCommand]
     private void Open()
     {
-        FileDialogViewModel viewModel = new() { Filter = fileFilter };
-        if (Navigation.ShowDialog(NavigationDestinations.Open, viewModel) != true || viewModel.FilePath is not string filePath)
+        FileFormats fileFormats = new(Navigation);
+        if (fileFormats.Open() is not (FileInformation fileInfo, Func<Stream, DrawnPaths?> load))
             return;
 
-        DrawnPaths? paths =
-            Path.GetExtension(filePath) switch
-            {
-                ".cs" => DrawnPaths.LoadFromCSharp(filePath),
-                ".path" => DrawnPaths.LoadFromBinary(filePath),
-                _ => null,
-            };
+        DrawnPaths? paths;
+        using (FileStream stream = new(fileInfo.Path, FileMode.Open))
+            paths = load(stream);
         if (paths is null)
         {
             Navigation.ShowDialog(
@@ -180,20 +180,20 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         }
 
         DrawablePath[] oldPaths = [.. Paths];
-        string? oldFilePath = FilePath;
+        FileInformation? oldFileInfo = FileInfo;
         Size oldCanvasSize = CanvasSize;
         UndoStack.Do(
             "Open Picture",
             () =>
             {
                 Open(paths);
-                FilePath = filePath;
+                FileInfo = fileInfo;
             },
             () =>
             {
                 UndoPathChanges(oldPaths);
                 CanvasSize = oldCanvasSize;
-                FilePath = oldFilePath;
+                FileInfo = oldFileInfo;
             });
     }
 
@@ -203,14 +203,10 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [RelayCommand]
     private void Save()
     {
-        if (FilePath is not null)
-            DoSave(FilePath);
+        if (FileInfo is not null)
+            DoSave(FileInfo);
         else
-        {
-            FileDialogViewModel viewModel = new() { Filter = fileFilter };
-            if (Navigation.ShowDialog(NavigationDestinations.Save, viewModel) == true && viewModel.FilePath is not null)
-                DoSave(viewModel.FilePath);
-        }
+            SaveAs();
     }
 
     /// <summary>
@@ -219,9 +215,9 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     [RelayCommand]
     private void SaveAs()
     {
-        FileDialogViewModel viewModel = new() { Filter = fileFilter, FilePath = FilePath };
-        if (Navigation.ShowDialog(NavigationDestinations.Save, viewModel) == true && viewModel.FilePath is not null)
-            DoSave(viewModel.FilePath);
+        FileFormats fileFormats = new(Navigation);
+        if (fileFormats.SaveAs(FileInfo?.Path) is FileInformation fileInfo)
+            DoSave(fileInfo);
     }
 
     /// <summary>
@@ -437,31 +433,14 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// <summary>
     /// Save the current canvas to a file.
     /// </summary>
-    /// <param name="filePath">The file path to which to save.</param>
-    private void DoSave(string filePath)
+    /// <param name="fileInfo">The file information containing the path and save function to use.</param>
+    private void DoSave(FileInformation fileInfo)
     {
         try
         {
-            switch (Path.GetExtension(filePath))
-            {
-            case ".cs":
-                DrawnPaths.SaveAsCSharp(filePath);
-                break;
-            case ".path":
-                DrawnPaths.SaveAsBinary(filePath);
-                break;
-            default:
-                Navigation.ShowDialog(
-                    NavigationDestinations.MessageBox,
-                    new MessageBoxViewModel()
-                    {
-                        Title = "Unknown extension",
-                        Message = $"A file format couldn't be determined for the selected file extension so the file has not been saved.",
-                        Image = MessageBoxViewModel.Images.Warning,
-                    });
-                break;
-            }
-            FilePath = filePath;
+            using FileStream stream = new(fileInfo.Path, FileMode.Create);
+            fileInfo.Save(DrawnPaths, stream, Path.GetFileNameWithoutExtension(fileInfo.Path));
+            FileInfo = fileInfo;
         }
         catch (IOException ex)
         {
@@ -477,7 +456,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
             if (Navigation.ShowDialog(NavigationDestinations.MessageBox, viewModel) == true
                 && viewModel.SelectedButton == MessageBoxViewModel.Buttons.Yes)
             {
-                DoSave(filePath);
+                DoSave(fileInfo);
             }
         }
     }
