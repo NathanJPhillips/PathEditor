@@ -21,6 +21,7 @@
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoStack.UndoCommand}" />
         <KeyBinding Key="Y" Modifiers="Control" Command="{Binding UndoStack.RedoCommand}" />
+        <KeyBinding Key="P" Modifiers="Control" Command="{Binding PrintCommand}" />
         <KeyBinding Key="Esc" Command="{Binding ExitBabyPaintViewCommand}" />
     </Window.InputBindings>
     <Grid>
