@@ -216,6 +216,32 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
     }
 
     /// <summary>
+    /// Prints the current <see cref="DrawnPaths"/> object using a <see cref="PrintDialog"/>.
+    /// </summary>
+    /// <param name="name">The name of the canvas to use in the print job description.</param>
+    public void Print(string name)
+    {
+        PrintDialog printDialog = new();
+        if (printDialog.ShowDialog() != true)
+            return;
+
+        // Create a canvas and draw the paths
+        Canvas canvas = new() { Background = Brushes.Transparent };
+        Draw(canvas);
+
+        // Get the printable area and calculate the scale factor
+        double scaleX = printDialog.PrintableAreaWidth / canvasSize.Width;
+        double scaleY = printDialog.PrintableAreaHeight / canvasSize.Height;
+        double scale = Math.Min(scaleX, scaleY); // Maintain aspect ratio
+
+        // Apply a scale transform to the canvas
+        canvas.LayoutTransform = new ScaleTransform(scale, scale);
+
+        // Print the scaled canvas
+        printDialog.PrintVisual(canvas, $"Path Editor - {name}");
+    }
+
+    /// <summary>
     /// Draw the paths on the given canvas.
     /// </summary>
     /// <param name="canvas">The canvas on which to draw the paths.</param>

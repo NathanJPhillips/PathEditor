@@ -221,6 +221,12 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     }
 
     /// <summary>
+    /// Print the current canvas to a printer.
+    /// </summary>
+    [RelayCommand]
+    private void Print() => DrawnPaths.Print(FileName);
+
+    /// <summary>
     /// Perform an auto-save of the current canvas.
     /// </summary>
     public void AutoSave() => AutoSaver.Save(DrawnPaths);
