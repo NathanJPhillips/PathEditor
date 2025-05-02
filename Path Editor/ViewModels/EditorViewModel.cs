@@ -1,21 +1,56 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NobleTech.Products.PathEditor.Utils;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace NobleTech.Products.PathEditor.ViewModels;
 
 internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 {
-    private const string fileFilter = "Paths Files|*.path|C# Source Files|*.cs|All Files|*.*";
+    private record FileFormat(
+        string Name,
+        string[] Extensions,
+        Action<DrawnPaths, Stream, string> Save,
+        Func<Stream, DrawnPaths?>? Load = null) : IFileFormat;
+
+    private record FileInformation(string Path, Action<DrawnPaths, Stream, string> Save);
+
+    private static readonly FileFormat[] nativeFileFormats =
+        [
+            new(
+                "Paths Files",
+                [".path"],
+                (paths, stream, name) => paths.SaveAsBinary(stream),
+                DrawnPaths.LoadFromBinary),
+            new(
+                "C# Source Files",
+                [".cs"],
+                (paths, stream, name) => paths.SaveAsCSharp(stream, name),
+                DrawnPaths.LoadFromCSharp),
+        ];
 
     private static readonly string autoSaveFolder = Path.Combine(Path.GetTempPath(), "Path Editor");
     private static readonly string autoSavePath = Path.Combine(autoSaveFolder, "AutoSave.path");
 
     private readonly List<DrawablePath> completePaths = [];
     private DrawablePath? currentPath;
+
+    private FileInformation? fileInfo;
+    private FileInformation? FileInfo
+    {
+        get => fileInfo;
+        set
+        {
+            if (fileInfo == value)
+                return;
+            fileInfo = value;
+            OnPropertyChanged(nameof(FileName));
+        }
+    }
 
     public EditorViewModel()
     {
@@ -29,12 +64,8 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         set => navigation = value;
     }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(FileName))]
-    private string? filePath = null;
-
     public string FileName =>
-        FilePath is null ? "[Untitled]" : Path.GetFileNameWithoutExtension(FilePath);
+        FileInfo?.Path is string filePath ? Path.GetFileNameWithoutExtension(filePath) : "[Untitled]";
 
     [ObservableProperty, NotifyPropertyChangedFor(nameof(CanvasWidth), nameof(CanvasHeight))]
     private Size canvasSize = new(1920, 1080);
@@ -84,39 +115,37 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     {
         CompleteCurrentPath();
         DrawablePath[] oldPaths = [.. Paths];
-        string? oldFilePath = FilePath;
+        FileInformation? oldFileInfo = FileInfo;
         UndoStack.Do(
             "New Picture",
             () =>
             {
                 Debug.Assert(currentPath is null);
                 completePaths.Clear();
-                FilePath = null;
+                FileInfo = null;
                 RedrawRequired?.Invoke();
             },
             () =>
             {
                 UndoPathChanges(oldPaths);
-                FilePath = oldFilePath;
+                FileInfo = oldFileInfo;
             });
     }
 
     [RelayCommand]
     private void Open()
     {
-        FileDialogViewModel viewModel = new() { Filter = fileFilter };
-        if (Navigation.ShowDialog("Open", viewModel) != true || viewModel.FilePath is not string filePath)
+        FileDialogViewModel viewModel = new() { FileFormats = [.. nativeFileFormats.Where(format => format.Load is not null)] };
+        if (Navigation.ShowDialog("Open", viewModel) != true
+            || viewModel.FilePath is not string filePath
+            || viewModel.SelectedFileFormat is not FileFormat fileFormat)
+        {
             return;
+        }
 
         DrawnPaths? paths;
-        string extension = Path.GetExtension(filePath);
-        paths =
-            extension switch
-            {
-                ".cs" => DrawnPaths.LoadFromCSharp(filePath),
-                ".path" => DrawnPaths.LoadFromBinary(filePath),
-                _ => null,
-            };
+        using (FileStream stream = new(filePath, FileMode.Open))
+            paths = fileFormat.Load!(stream);
         if (paths is null)
         {
             Navigation.ShowDialog(
@@ -133,7 +162,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
 
         CompleteCurrentPath();
         DrawablePath[] oldPaths = [.. Paths];
-        string? oldFilePath = FilePath;
+        FileInformation? oldFileInfo = FileInfo;
         Size oldCanvasSize = CanvasSize;
         UndoStack.Do(
             "Open Picture",
@@ -143,36 +172,57 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
                 CanvasSize = paths.canvasSize;
                 completePaths.Clear();
                 completePaths.AddRange(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
-                FilePath = filePath;
+                FileInfo = new(filePath, fileFormat.Save);
                 RedrawRequired?.Invoke();
             },
             () =>
             {
                 UndoPathChanges(oldPaths);
                 CanvasSize = oldCanvasSize;
-                FilePath = oldFilePath;
+                FileInfo = oldFileInfo;
             });
     }
 
     [RelayCommand]
     private void Save()
     {
-        if (FilePath is not null)
-            DoSave(FilePath);
+        if (FileInfo is not null)
+            DoSave(FileInfo);
         else
-        {
-            FileDialogViewModel viewModel = new() { Filter = fileFilter };
-            if (Navigation.ShowDialog("Save", viewModel) == true && viewModel.FilePath is not null)
-                DoSave(viewModel.FilePath);
-        }
+            SaveAs();
     }
 
     [RelayCommand]
     private void SaveAs()
     {
-        FileDialogViewModel viewModel = new() { Filter = fileFilter, FilePath = FilePath };
-        if (Navigation.ShowDialog("Save", viewModel) == true && viewModel.FilePath is not null)
-            DoSave(viewModel.FilePath);
+        string encoderPostscript = " Encoder";
+        FileDialogViewModel viewModel =
+            new()
+            {
+                FileFormats =
+                    [
+                        .. nativeFileFormats,
+                        .. BitmapUtils.AllEncoders
+                            .Select(
+                                encoderFactory =>
+                                {
+                                    BitmapCodecInfo encoderInfo = encoderFactory().CodecInfo;
+                                    return
+                                        new FileFormat(
+                                            encoderInfo.FriendlyName.EndsWith(encoderPostscript)
+                                                ? encoderInfo.FriendlyName[0 .. ^encoderPostscript.Length]
+                                                : encoderInfo.FriendlyName,
+                                            encoderInfo.FileExtensions.Split(','),
+                                            (paths, stream, name) => paths.SaveAsBitmap(encoderFactory(), stream));
+                                })],
+                FilePath = FileInfo?.Path,
+            };
+        if (Navigation.ShowDialog("Save", viewModel) == true
+            && viewModel.FilePath is string filePath
+            && viewModel.SelectedFileFormat is FileFormat fileFormat)
+        {
+            DoSave(new(filePath, fileFormat.Save));
+        }
     }
 
     public void AutoSave()
@@ -180,7 +230,8 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         try
         {
             Directory.CreateDirectory(autoSaveFolder);
-            DrawnPaths.SaveAsBinary(autoSavePath);
+            using FileStream stream = new(autoSavePath, FileMode.Create);
+            DrawnPaths.SaveAsBinary(stream);
         }
         catch (IOException)
         {
@@ -192,7 +243,8 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         DrawnPaths paths;
         try
         {
-            paths = DrawnPaths.LoadFromBinary(autoSavePath);
+            using FileStream stream = new(autoSavePath, FileMode.Open);
+            paths = DrawnPaths.LoadFromBinary(stream);
         }
         catch (IOException)
         {
@@ -370,16 +422,13 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
             () => UndoPathChanges(oldPaths));
     }
 
-    private void DoSave(string filePath)
+    private void DoSave(FileInformation fileInfo)
     {
-        string extension = Path.GetExtension(filePath);
         try
         {
-            if (extension == ".cs")
-                DrawnPaths.SaveAsCSharp(filePath);
-            else if (extension == ".path")
-                DrawnPaths.SaveAsBinary(filePath);
-            FilePath = filePath;
+            using FileStream stream = new(fileInfo.Path, FileMode.Create);
+            fileInfo.Save(DrawnPaths, stream, Path.GetFileNameWithoutExtension(fileInfo.Path));
+            FileInfo = fileInfo;
         }
         catch (IOException ex)
         {
@@ -393,7 +442,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
                     Image = MessageBoxViewModel.Images.Warning,
                 };
             if (Navigation.ShowDialog("MessageBox", viewModel) == true && viewModel.SelectedButton == MessageBoxViewModel.Buttons.Yes)
-                DoSave(filePath);
+                DoSave(fileInfo);
         }
     }
 

@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using Path = System.Windows.Shapes.Path;
 
@@ -22,9 +23,8 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
     internal readonly DrawnPath[] drawnPaths = drawnPaths;
     internal readonly Size canvasSize = canvasSize;
 
-    public static DrawnPaths LoadFromBinary(string filePath)
+    public static DrawnPaths LoadFromBinary(Stream stream)
     {
-        using FileStream stream = new(filePath, FileMode.Open);
         using BinaryReader reader = new(stream);
         double width = reader.ReadDouble();
         double height = reader.ReadDouble();
@@ -46,9 +46,8 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         return new(paths, new(width, height));
     }
 
-    public void SaveAsBinary(string filePath)
+    public void SaveAsBinary(Stream stream)
     {
-        using FileStream stream = new(filePath, FileMode.Create);
         using BinaryWriter writer = new(stream);
         writer.Write(canvasSize.Width);
         writer.Write(canvasSize.Height);
@@ -69,9 +68,9 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         }
     }
 
-    public static DrawnPaths? LoadFromCSharp(string filePath)
+    public static DrawnPaths? LoadFromCSharp(Stream stream)
     {
-        using StreamReader reader = new(filePath);
+        using StreamReader reader = new(stream);
         string? line;
         do
         {
@@ -124,11 +123,11 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
                 new(double.Parse(canvasSizeMatch.Groups["width"].Value), double.Parse(canvasSizeMatch.Groups["height"].Value)));
     }
 
-    public void SaveAsCSharp(string filePath)
+    public void SaveAsCSharp(Stream stream, string name)
     {
-        using StreamWriter writer = new(filePath);
+        using StreamWriter writer = new(stream);
         writer.WriteLine($"    // Created {DateTime.Now} by NobleTech Path Editor");
-        writer.WriteLine($"    DrawnPaths {System.IO.Path.GetFileNameWithoutExtension(filePath).Replace(' ', '_')} =");
+        writer.WriteLine($"    DrawnPaths {name.Replace(' ', '_')} =");
         writer.WriteLine("        new(");
         writer.WriteLine("            [");
         foreach (DrawnPath path in drawnPaths)
@@ -140,6 +139,20 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         writer.WriteLine($"            new({canvasSize.Width}, {canvasSize.Height}));");
     }
 
+    public void SaveAsBitmap(BitmapEncoder encoder, Stream stream)
+    {
+        Canvas canvas = new() { Background = Brushes.Transparent };
+        Draw(canvas);
+        BitmapUtils.SaveAs(canvas, (int)canvasSize.Width, (int)canvasSize.Height, encoder, stream);
+    }
+
+    public void Draw(Canvas canvas)
+    {
+        canvas.Width = canvasSize.Width;
+        canvas.Height = canvasSize.Height;
+        canvas.Children.AddRange(drawnPaths.Select(CreatePath));
+    }
+
     public Storyboard Animate(Canvas canvas) => Animate(canvas, TimeSpan.FromSeconds(0.5));
 
     public Storyboard Animate(Canvas canvas, TimeSpan totalDuration)
@@ -147,46 +160,29 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         canvas.Width = canvasSize.Width;
         canvas.Height = canvasSize.Height;
 
+        static Path CreatePath(DrawnPath drawnPath, double strokeLength)
+        {
+            Path path = DrawnPaths.CreatePath(drawnPath);
+            path.StrokeDashCap = PenLineCap.Round;
+            path.StrokeDashArray = [strokeLength, strokeLength + 2];
+            path.StrokeDashOffset = strokeLength + 1;
+            return path;
+        }
+
         var paths = (
             from drawnPath in
                 drawnPaths.SelectWithNext(
                     (path, next) =>
                     new
                     {
-                        path.Points,
-                        path.StrokeColor,
-                        path.StrokeThickness,
+                        Path = path,
                         DistanceToNext = next is null ? 0 : DistanceBetween(path.Points[^1], path.Points[0]),
                     })
-            let length = drawnPath.Points.SelectFromPairs(DistanceBetween).Sum()
-            let strokeLength = length / drawnPath.StrokeThickness
+            let length = drawnPath.Path.Points.SelectFromPairs(DistanceBetween).Sum()
             select
                 new
                 {
-                    Path =
-                        new Path()
-                        {
-                            Stroke = new SolidColorBrush(drawnPath.StrokeColor),
-                            StrokeThickness = drawnPath.StrokeThickness,
-                            StrokeStartLineCap = PenLineCap.Round,
-                            StrokeEndLineCap = PenLineCap.Round,
-                            StrokeLineJoin = PenLineJoin.Round,
-                            StrokeDashCap = PenLineCap.Round,
-                            StrokeDashArray = [strokeLength, strokeLength + 2],
-                            StrokeDashOffset = strokeLength + 1,
-                            Data =
-                                new PathGeometry()
-                                {
-                                    Figures =
-                                        [
-                                            new PathFigure()
-                                            {
-                                                StartPoint = drawnPath.Points[0],
-                                                Segments = [ new PolyLineSegment(drawnPath.Points[1..], true) ],
-                                            },
-                                        ],
-                                },
-                        },
+                    Path = CreatePath(drawnPath.Path, length / drawnPath.Path.StrokeThickness),
                     Length = length,
                     drawnPath.DistanceToNext,
                 }).ToArray();
@@ -215,6 +211,28 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         storyboard.Begin();
         return storyboard;
     }
+
+    private static Path CreatePath(DrawnPath path) =>
+        new()
+        {
+            Stroke = new SolidColorBrush(path.StrokeColor),
+            StrokeThickness = path.StrokeThickness,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round,
+            Data =
+                        new PathGeometry()
+                        {
+                            Figures =
+                                [
+                                    new PathFigure()
+                                    {
+                                        StartPoint = path.Points[0],
+                                        Segments = [ new PolyLineSegment(path.Points[1..], true) ],
+                                    },
+                                ],
+                        },
+        };
 
     private static double DistanceBetween(Point point1, Point point2) => (point2 - point1).Length;
 
