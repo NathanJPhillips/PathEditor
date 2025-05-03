@@ -28,6 +28,7 @@
         <Canvas x:Name="Canvas"
                 TouchDown="Canvas_TouchEvent" TouchMove="Canvas_TouchEvent" TouchUp="Canvas_TouchEvent"
                 MouseMove="Canvas_MouseMove" MouseLeftButtonDown="Canvas_MouseLeftButtonDown" MouseLeftButtonUp="Canvas_MouseLeftButtonUp"
+                Stylus.IsPressAndHoldEnabled="False" Stylus.IsTapFeedbackEnabled="False" Stylus.IsTouchFeedbackEnabled="False" Stylus.IsFlicksEnabled="False"
                 Background="White">
             <pb:PushBindingManager.PushBindings>
                 <pb:PushBinding TargetProperty="ActualHeight" Path="CanvasHeight" />

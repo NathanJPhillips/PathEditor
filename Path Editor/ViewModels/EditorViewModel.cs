@@ -30,9 +30,9 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     }
 
     /// <summary>
-    /// The current path being drawn on the canvas.
+    /// Map from input device to the path currently being drawn on the canvas with that device.
     /// </summary>
-    private DrawablePath? currentPath;
+    private readonly Dictionary<object, DrawablePath> currentPaths = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EditorViewModel"/> class.
@@ -142,7 +142,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
             () =>
             {
                 paths.Clear();
-                currentPath = null;
+                currentPaths.Clear();
                 FileInfo = null;
             },
             () =>
@@ -264,20 +264,16 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// </summary>
     /// <param name="point">The point on the canvas that received a mouse or touch event.</param>
     /// <param name="e">The event that occured.</param>
-    public void ProcessPoint(Point point, InputEvents e)
+    /// <param name="device">The input device that generated the event.</param>
+    public void ProcessPoint(Point point, InputEvents e, object device)
     {
-        if (e == InputEvents.Down || currentPath is null)
-        {
-            currentPath = new([point], CurrentStrokeColor, CurrentStrokeThickness);
-        }
+        if (e == InputEvents.Down || !currentPaths.TryGetValue(device, out DrawablePath? currentPath))
+            currentPaths[device] = new([point], CurrentStrokeColor, CurrentStrokeThickness);
         else if (currentPath.Points.Add(point) && currentPath.SegmentCount == 1)
-        {
-            DrawablePath path = currentPath;    // Capture the current path
-            UndoStack.Do("Add Path", () => paths.Add(path), () => paths.Remove(path));
-        }
+            UndoStack.Do("Add Path", () => paths.Add(currentPath), () => paths.Remove(currentPath));
 
         if (e == InputEvents.Up)
-            currentPath = null;
+            currentPaths.Remove(device);
     }
 
     /// <summary>
@@ -424,7 +420,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     {
         CanvasSize = paths.canvasSize;
         this.paths.ResetTo(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
-        currentPath = null;
+        currentPaths.Clear();
     }
 
     private bool BoundsArentEmpty() => !GetBounds().IsZeroSize();
@@ -488,7 +484,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     private void MapPaths(Func<DrawablePath, DrawablePath> projection)
     {
         paths.ResetTo((DrawablePath[])([.. Paths.Select(projection)]));
-        currentPath = null;
+        currentPaths.Clear();
     }
 
     /// <summary>
@@ -497,7 +493,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// <param name="oldPaths">The paths to revert to.</param>
     private void UndoPathChanges(DrawablePath[] oldPaths)
     {
-        currentPath = null;     // Cancel current drawing operation
+        currentPaths.Clear();   // Cancel current drawing operation
         paths.ResetTo(oldPaths);
     }
 }

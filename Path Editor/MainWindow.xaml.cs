@@ -70,12 +70,12 @@ partial class MainWindow : Window, IDisposable
         if (DataContext is not EditorViewModel viewModel)
             return;
         foreach (TouchPoint touchPoint in e.GetIntermediateTouchPoints(Canvas))
-            ProcessPoint(viewModel, touchPoint);
-        ProcessPoint(viewModel, e.GetTouchPoint(Canvas));
+            ProcessPoint(viewModel, touchPoint, e.TouchDevice);
+        ProcessPoint(viewModel, e.GetTouchPoint(Canvas), e.TouchDevice);
         e.Handled = true;
     }
 
-    private static void ProcessPoint(EditorViewModel viewModel, TouchPoint touchPoint) =>
+    private static void ProcessPoint(EditorViewModel viewModel, TouchPoint touchPoint, TouchDevice device) =>
         viewModel.ProcessPoint(
             touchPoint.Position,
             touchPoint.Action switch
@@ -83,34 +83,41 @@ partial class MainWindow : Window, IDisposable
                 TouchAction.Up => InputEvents.Up,
                 TouchAction.Down => InputEvents.Down,
                 _ => InputEvents.Move,
-            });
+            },
+            device);
 
     private void Canvas_MouseMove(object sender, MouseEventArgs e)
     {
+        if (e.StylusDevice != null)
+            return;
         if (e.LeftButton == MouseButtonState.Pressed)
         {
-            ProcessPoint(e, InputEvents.Move);
+            ProcessPoint(e, InputEvents.Move, e.MouseDevice);
             e.Handled = true;
         }
     }
 
     private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        ProcessPoint(e, InputEvents.Down);
+        if (e.StylusDevice != null)
+            return;
+        ProcessPoint(e, InputEvents.Down, e.MouseDevice);
         e.Handled = true;
     }
 
     private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        ProcessPoint(e, InputEvents.Up);
+        if (e.StylusDevice != null)
+            return;
+        ProcessPoint(e, InputEvents.Up, e.MouseDevice);
         e.Handled = true;
     }
 
-    private void ProcessPoint(MouseEventArgs e, InputEvents inputEvent)
+    private void ProcessPoint(MouseEventArgs e, InputEvents inputEvent, MouseDevice device)
     {
         if (DataContext is not EditorViewModel viewModel)
             return;
-        viewModel.ProcessPoint(e.GetPosition(Canvas), inputEvent);
+        viewModel.ProcessPoint(e.GetPosition(Canvas), inputEvent, device);
     }
 
     private void SetCursor()
