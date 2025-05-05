@@ -66,6 +66,7 @@ partial class MainWindow : Window, IDisposable
             Redraw();
             break;
         case nameof(EditorViewModel.CurrentStrokeThickness):
+        case nameof(EditorViewModel.Mode):
             SetCursor();
             break;
         }
@@ -129,7 +130,7 @@ partial class MainWindow : Window, IDisposable
     private void SetCursor()
     {
         Canvas.Cursor =
-            DataContext is not MainWindowViewModel viewModel || !IsAncestorOf(Canvas)
+            DataContext is not MainWindowViewModel viewModel || viewModel.Editor.Mode != EditorModes.Draw || !IsAncestorOf(Canvas)
                 ? Cursors.Arrow
                 : CursorUtils.CreateCircle(
                         viewModel.Editor.CurrentStrokeThickness
@@ -185,6 +186,14 @@ partial class MainWindow : Window, IDisposable
     private readonly CommandForwarder redoCommand = new(viewModel => viewModel.Editor.UndoStack.RedoCommand);
     private void OnRedoExecuted(object sender, ExecutedRoutedEventArgs e) => redoCommand.ExecuteCommand(DataContext, e);
     private void OnRedoCanExecute(object sender, CanExecuteRoutedEventArgs e) => redoCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder selectAllCommand = new(viewModel => viewModel.Editor.SelectAllCommand);
+    private void OnSelectAllExecuted(object sender, ExecutedRoutedEventArgs e) => selectAllCommand.ExecuteCommand(DataContext, e);
+    private void OnSelectAllCanExecute(object sender, CanExecuteRoutedEventArgs e) => selectAllCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder deleteCommand = new(viewModel => viewModel.Editor.DeleteCommand);
+    private void OnDeleteExecuted(object sender, ExecutedRoutedEventArgs e) => deleteCommand.ExecuteCommand(DataContext, e);
+    private void OnDeleteCanExecute(object sender, CanExecuteRoutedEventArgs e) => deleteCommand.CanExecuteCommand(DataContext, e);
 
     public void Dispose()
     {

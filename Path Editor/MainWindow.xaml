@@ -22,6 +22,7 @@
             <Setter Property="Width" Value="50" />
         </Style>
         <converter:ColorToSolidColorBackgroundConverter x:Key="ColorToSolidColorBackgroundConverter" Invert="True" />
+        <converter:EqualValuesConverter x:Key="EqualValuesConverter" />
     </Window.Resources>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.New" Executed="OnNewExecuted" CanExecute="OnNewCanExecute"/>
@@ -32,8 +33,13 @@
         <CommandBinding Command="ApplicationCommands.Close" Executed="OnCloseExecuted" CanExecute="OnCloseCanExecute"/>
         <CommandBinding Command="ApplicationCommands.Undo" Executed="OnUndoExecuted" CanExecute="OnUndoCanExecute"/>
         <CommandBinding Command="ApplicationCommands.Redo" Executed="OnRedoExecuted" CanExecute="OnRedoCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.SelectAll" Executed="OnSelectAllExecuted" CanExecute="OnSelectAllCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Delete" Executed="OnDeleteExecuted" CanExecute="OnDeleteCanExecute"/>
     </Window.CommandBindings>
     <Window.InputBindings>
+        <KeyBinding Key="Esc" Command="{Binding Editor.DeselectAllCommand}" />
+        <KeyBinding Key="I" Modifiers="Control" Command="{Binding Editor.InvertSelectionCommand}" />
+        <KeyBinding Key="D" Modifiers="Control" Command="{Binding Editor.DuplicateCommand}" />
         <KeyBinding Key="F11" Command="{Binding BabyPaintViewCommand}" />
     </Window.InputBindings>
     <DockPanel>
@@ -64,6 +70,13 @@
                         </StackPanel>
                     </MenuItem.Header>
                 </MenuItem>
+                <Separator />
+                <MenuItem Header="Select _All" Command="ApplicationCommands.SelectAll" InputGestureText="Ctrl+A" />
+                <MenuItem Header="C_lear Selection" Command="{Binding Editor.DeselectAllCommand}" InputGestureText="Esc" />
+                <MenuItem Header="_Invert Selection" Command="{Binding Editor.InvertSelectionCommand}" InputGestureText="Ctrl+I" />
+                <Separator />
+                <MenuItem Header="_Delete" Command="ApplicationCommands.Delete" InputGestureText="Del" />
+                <MenuItem Header="D_uplicate" Command="{Binding Editor.DuplicateCommand}" InputGestureText="Ctrl+D" />
             </MenuItem>
             <MenuItem Header="_Image">
                 <MenuItem Header="_Crop to Paths" Command="{Binding Editor.CropToPathsCommand}" />
@@ -78,6 +91,10 @@
             <StackPanel Orientation="Horizontal">
                 <Border Width="1" Height="20" Background="Gray" VerticalAlignment="Center" />
                 <Border Width="1" Height="20" Margin="1.5,0,0,0" Background="Gray" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <ToggleButton IsChecked="{Binding Editor.Mode, Converter={StaticResource EqualValuesConverter}, ConverterParameter={x:Static viewmodels:EditorModes.Draw}}">Draw</ToggleButton>
+                <ToggleButton IsChecked="{Binding Editor.Mode, Converter={StaticResource EqualValuesConverter}, ConverterParameter={x:Static viewmodels:EditorModes.Select}}">Select</ToggleButton>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <Label>Brush width:</Label>

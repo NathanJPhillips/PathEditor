@@ -23,6 +23,9 @@ internal partial class MainWindowViewModel(EditorViewModel editor) : ObservableO
     /// Open the Baby Paint full-screen view.
     /// </summary>
     [RelayCommand]
-    private void BabyPaintView() =>
+    private void BabyPaintView()
+    {
+        Editor.Mode = EditorModes.Draw;
         Navigation.ReplaceWindow(NavigationDestinations.BabyPaint, new BabyPaintWindowViewModel(Editor));
+    }
 }

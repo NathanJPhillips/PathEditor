@@ -2,6 +2,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NobleTech.Products.PathEditor.Collections;
 using NobleTech.Products.PathEditor.Utils;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -42,6 +44,7 @@ internal partial class EditorViewModel : ObservableObject
         if (AutoSaver.Open() is DrawnPaths paths)
             Open(paths);
         Paths.CollectionChanged += (sender, args) => OnPathsChanged();
+        SelectedPaths.CollectionChanged += (sender, args) => OnSelectionChanged();
     }
 
     private INavigationService? navigation;
@@ -76,6 +79,26 @@ internal partial class EditorViewModel : ObservableObject
     public IBackground? background;
 
     /// <summary>
+    /// The mode of the editor, which determines how touches are interpreted.
+    /// </summary>
+    [ObservableProperty]
+    private EditorModes mode = EditorModes.Draw;
+    partial void OnModeChanged(EditorModes oldValue, EditorModes newValue)
+    {
+        switch (oldValue)
+        {
+        case EditorModes.Draw:
+            // Complete the paths currently being drawn if we are switching to select mode.
+            currentPaths.Clear();
+            break;
+        case EditorModes.Select:
+            // Remove the selection if we are switching to draw mode.
+            selectedPaths.Clear();
+            break;
+        }
+    }
+
+    /// <summary>
     /// The color of the stroke used to draw new paths.
     /// </summary>
     [ObservableProperty]
@@ -92,6 +115,12 @@ internal partial class EditorViewModel : ObservableObject
     /// The paths that have been drawn or are being drawn on the canvas.
     /// </summary>
     public IReadOnlyObservableCollection<DrawablePath> Paths => paths;
+
+    private readonly ObservableCollection<DrawablePath, HashSet<DrawablePath>> selectedPaths = [];
+    /// <summary>
+    /// The paths that are currently selected on the canvas.
+    /// </summary>
+    public IReadOnlyObservableCollection<DrawablePath> SelectedPaths => selectedPaths;
 
     /// <summary>
     /// The current state of this canvas exported to a <see cref="DrawnPaths"/> object.
@@ -117,7 +146,9 @@ internal partial class EditorViewModel : ObservableObject
             {
                 paths.Clear();
                 currentPaths.Clear();
+                selectedPaths.Clear();
                 FileInfo = null;
+                Mode = EditorModes.Draw;
             },
             () =>
             {
@@ -216,6 +247,74 @@ internal partial class EditorViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Select all paths on the canvas.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanSelectAll))]
+    private void SelectAll()
+    {
+        selectedPaths.ResetTo(Paths);
+        Mode = EditorModes.Select;
+    }
+    private bool CanSelectAll() => SelectedPaths.Count < Paths.Count;
+
+    /// <summary>
+    /// Deselect all paths on the canvas.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void DeselectAll() => selectedPaths.Clear();
+
+    /// <summary>
+    /// Invert the selection of paths on the canvas.
+    /// </summary>
+    [RelayCommand]
+    private void InvertSelection()
+    {
+        DrawablePath[] previouslySelected = [.. SelectedPaths];
+        selectedPaths.ResetTo(Paths.Except(previouslySelected));
+        if (SelectedPaths.Count != 0)
+            Mode = EditorModes.Select;
+    }
+
+    /// <summary>
+    /// Delete the selected paths from the canvas.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void Delete() => Delete("Delete");
+
+    /// <summary>
+    /// Duplicate the selected paths on the canvas.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void Duplicate()
+    {
+        DrawablePath[] duplicatePaths =
+            [.. SelectedPaths.Select(path => new DrawablePath(path.Points, path.StrokeColor, path.StrokeThickness, this))];
+        UndoStack.Do(
+            "Duplicate",
+            () =>
+            {
+                paths.AddRange(duplicatePaths);
+                selectedPaths.ResetTo(duplicatePaths);
+            },
+            () =>
+            {
+                paths.RemoveRange(duplicatePaths);
+                selectedPaths.RemoveRange(duplicatePaths);
+            });
+    }
+
+    private bool IsSomethingSelected() => SelectedPaths.Count != 0;
+
+    private void OnSelectionChanged()
+    {
+        DeleteCommand.NotifyCanExecuteChanged();
+        SelectAllCommand.NotifyCanExecuteChanged();
+        DeselectAllCommand.NotifyCanExecuteChanged();
+        InvertSelectionCommand.NotifyCanExecuteChanged();
+        DuplicateCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>
     /// Open the animation preview window.
     /// </summary>
     [RelayCommand]
@@ -229,13 +328,62 @@ internal partial class EditorViewModel : ObservableObject
     /// <param name="device">The input device that generated the event.</param>
     public void ProcessPoint(Point point, InputEvents e, object device)
     {
+        switch (Mode)
+        {
+        case EditorModes.Draw:
+            DrawPoint(point, e, device);
+            break;
+        case EditorModes.Select:
+            SelectAtPoint(point, e);
+            break;
+        default:
+            throw new InvalidEnumArgumentException(nameof(Mode), (int)Mode, Mode.GetType());
+        }
+    }
+
+    /// <summary>
+    /// Processes a mouse or touch event at a point on the canvas in drawing mode.
+    /// </summary>
+    /// <param name="point">The point on the canvas that received a mouse or touch event.</param>
+    /// <param name="e">The event that occured.</param>
+    /// <param name="device">The input device that generated the event.</param>
+    private void DrawPoint(Point point, InputEvents e, object device)
+    {
         if (e == InputEvents.Down || !currentPaths.TryGetValue(device, out DrawablePath? currentPath))
-            currentPaths[device] = new([point], CurrentStrokeColor, CurrentStrokeThickness);
+            currentPaths[device] = new([point], CurrentStrokeColor, CurrentStrokeThickness, this);
         else if (currentPath.Points.Add(point) && currentPath.SegmentCount == 1)
             UndoStack.Do("Add Path", () => paths.Add(currentPath), () => paths.Remove(currentPath));
 
         if (e == InputEvents.Up)
             currentPaths.Remove(device);
+    }
+
+    /// <summary>
+    /// Processes a mouse or touch event at a point on the canvas in selection mode.
+    /// </summary>
+    /// <param name="point">The point on the canvas that received a mouse or touch event.</param>
+    /// <param name="e">The event that occured.</param>
+    private void SelectAtPoint(Point point, InputEvents e)
+    {
+        if (e != InputEvents.Down)
+            return;
+        // Select the path under the point
+        IEnumerable<DrawablePath> pathsAtPoint = Paths.Reverse().Where(path => path.HitTest(point));
+        if (!pathsAtPoint.Any())
+        {
+            // No path under the point, deselect all paths
+            DeselectAll();
+            return;
+        }
+        foreach (DrawablePath path in pathsAtPoint)
+        {
+            if (!path.IsSelected)
+            {
+                selectedPaths.Add(path);
+                return;
+            }
+            selectedPaths.Remove(path);
+        }
     }
 
     /// <summary>
@@ -260,7 +408,8 @@ internal partial class EditorViewModel : ObservableObject
                     new(
                         points: [.. path.Points.Select(point => (Point)(point - bounds.TopLeft))],
                         path.StrokeColor,
-                        path.StrokeThickness));
+                        path.StrokeThickness,
+                        this));
             },
             () =>
             {
@@ -312,7 +461,8 @@ internal partial class EditorViewModel : ObservableObject
                                         point.Y * scale.Y + offset.Y))
                             ],
                         path.StrokeColor,
-                        path.StrokeThickness * thicknessScale));
+                        path.StrokeThickness * thicknessScale,
+                        this));
             },
             () =>
             {
@@ -347,7 +497,8 @@ internal partial class EditorViewModel : ObservableObject
                                     (point.Y - bounds.Top) / bounds.Height * CanvasSize.Height))
                         ],
                     path.StrokeColor,
-                    path.StrokeThickness)),
+                    path.StrokeThickness,
+                    this)),
             () => UndoPathChanges(oldPaths));
     }
 
@@ -374,15 +525,17 @@ internal partial class EditorViewModel : ObservableObject
                 new(
                     points: [.. path.Points.Select(point => point + offset)],
                     path.StrokeColor,
-                    path.StrokeThickness)),
+                    path.StrokeThickness,
+                    this)),
             () => UndoPathChanges(oldPaths));
     }
 
     private void Open(DrawnPaths paths)
     {
         CanvasSize = paths.canvasSize;
-        this.paths.ResetTo(paths.drawnPaths.Select(DrawablePath.FromDrawnPath));
+        this.paths.ResetTo(paths.drawnPaths.Select(DrawablePath.FromDrawnPath(this)));
         currentPaths.Clear();
+        selectedPaths.Clear();
     }
 
     private bool BoundsArentEmpty() => !GetBounds().IsZeroSize();
@@ -425,6 +578,24 @@ internal partial class EditorViewModel : ObservableObject
         }
     }
 
+    private void Delete(string undoTitle)
+    {
+        DrawablePath[] pathsToDelete = [.. SelectedPaths];
+        UndoStack.Do(
+            undoTitle,
+            () =>
+            {
+                paths.RemoveRange(pathsToDelete);
+                // Don't just remove all selected paths as the user may have selected other paths and then redone this delete.
+                selectedPaths.RemoveRange(pathsToDelete);
+            },
+            () =>
+            {
+                paths.AddRange(pathsToDelete);
+                selectedPaths.ResetTo(pathsToDelete);
+            });
+    }
+
     /// <summary>
     /// Gets the bounds of the drawn paths.
     /// </summary>
@@ -445,7 +616,10 @@ internal partial class EditorViewModel : ObservableObject
     /// <param name="projection"></param>
     private void MapPaths(Func<DrawablePath, DrawablePath> projection)
     {
-        paths.ResetTo((DrawablePath[])([.. Paths.Select(projection)]));
+        var updates = Paths.ToDictionary(path => path, projection);
+        selectedPaths.ResetTo((DrawablePath[])[.. SelectedPaths.Select(path => updates[path])]);
+        paths.ResetTo(updates.Values);
+        Debug.Assert(SelectedPaths.All(Paths.Contains));
         currentPaths.Clear();
     }
 
@@ -457,5 +631,6 @@ internal partial class EditorViewModel : ObservableObject
     {
         currentPaths.Clear();   // Cancel current drawing operation
         paths.ResetTo(oldPaths);
+        selectedPaths.Clear();
     }
 }

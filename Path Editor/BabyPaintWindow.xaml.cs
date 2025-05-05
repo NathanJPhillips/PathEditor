@@ -69,6 +69,7 @@ partial class BabyPaintWindow : Window, IDisposable
             Redraw();
             break;
         case nameof(EditorViewModel.CurrentStrokeThickness):
+        case nameof(EditorViewModel.Mode):
             SetCursor();
             break;
         }

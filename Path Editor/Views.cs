@@ -1,5 +1,6 @@
 ﻿using NobleTech.Products.PathEditor.Utils;
 using NobleTech.Products.PathEditor.ViewModels;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -36,6 +37,9 @@ internal sealed class Views(Canvas canvas) : IDisposable
         private readonly Canvas canvas;
         private readonly PolyLineSegment segment;
         private readonly Path path;
+        private Path? outline;
+
+        private double OutlineThickness => canvas.Width / 150;
 
         public View(DrawablePath drawablePath, Canvas canvas)
         {
@@ -65,15 +69,98 @@ internal sealed class Views(Canvas canvas) : IDisposable
                     IsHitTestVisible = false,
                 };
             canvas.Children.Add(path);
+            UpdateSelectionOutline();
             drawablePath.Points.Added += OnPointAdded;
+            drawablePath.PropertyChanged += DrawablePath_PropertyChanged;
         }
 
         private void OnPointAdded(object sender, Point point) => segment.Points.Add(point);
 
+        private void DrawablePath_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(DrawablePath.IsSelected))
+            {
+                UpdateSelectionOutline();
+            }
+            else if (e.PropertyName == nameof(DrawablePath.StrokeThickness))
+            {
+                path.StrokeThickness = drawablePath.StrokeThickness;
+                if (outline is not null)
+                {
+                    canvas.Children.Remove(outline);
+                    outline = null;
+                    UpdateSelectionOutline();
+                }
+            }
+            else if (e.PropertyName == nameof(DrawablePath.StrokeColor))
+                path.SetValue(Shape.StrokeProperty, new SolidColorBrush(drawablePath.StrokeColor));
+        }
+
+        private void UpdateSelectionOutline()
+        {
+            if (outline is not null)
+                canvas.Children.Remove(outline);
+            if (drawablePath.IsSelected)
+            {
+                outline ??= CreateOutline(drawablePath.StrokeColor.GetContrastingColour());
+                canvas.Children.Add(outline);
+            }
+        }
+
+        private Path CreateOutline(Color outlineColor) =>
+            new()
+            {
+                Data =
+                    Geometry.Combine(
+                        CreatePathGeometry(drawablePath.Points, drawablePath.StrokeThickness / 2 + OutlineThickness),
+                        CreatePathGeometry(drawablePath.Points, drawablePath.StrokeThickness / 2),
+                        GeometryCombineMode.Exclude,
+                        Transform.Identity),
+                Fill = new SolidColorBrush(outlineColor),
+                IsHitTestVisible = false,
+            };
+
+        private static Geometry CreatePathGeometry(IEnumerable<Point> points, double strokeHalfThickness) =>
+            points
+                .SelectWithNext<Point, IEnumerable<Geometry>>(
+                    (Point begin, Point? next) =>
+                    {
+                        // Create an ellipse at the start of the line segment
+                        EllipseGeometry startCircle = new(begin, strokeHalfThickness, strokeHalfThickness);
+                        return next is not Point end ? [startCircle]
+                            // Create a line segment between the two points
+                            : [startCircle, CreateRotatedRectangle(begin, end, strokeHalfThickness)];
+                    })
+                .SelectMany(geometries => geometries)
+                .Aggregate((geometry1, geometry2) => Geometry.Combine(geometry1, geometry2, GeometryCombineMode.Union, Transform.Identity));
+
+        private static StreamGeometry CreateRotatedRectangle(Point begin, Point end, double width)
+        {
+            // Calculate the direction vector from begin to end
+            Vector direction = end - begin;
+            direction.Normalize();
+            // Calculate the perpendicular vector for the rectangle's width
+            Vector widthVector = new Vector(-direction.Y, direction.X) * width;
+
+            StreamGeometry geometry = new();
+            using (StreamGeometryContext ctx = geometry.Open())
+            {
+                ctx.BeginFigure(begin + widthVector, isFilled: true, isClosed: true);
+                ctx.LineTo(end + widthVector, isStroked: true, isSmoothJoin: true);
+                ctx.LineTo(end - widthVector, isStroked: true, isSmoothJoin: true);
+                ctx.LineTo(begin - widthVector, isStroked: true, isSmoothJoin: true);
+            }
+            geometry.Freeze(); // Optimize the geometry for performance
+            return geometry;
+        }
+
         public void Dispose()
         {
             drawablePath.Points.Added -= OnPointAdded;
+            drawablePath.PropertyChanged -= DrawablePath_PropertyChanged;
             canvas.Children.Remove(path);
+            if (outline is not null)
+                canvas.Children.Remove(outline);
         }
     }
 }

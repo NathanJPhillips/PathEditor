@@ -1,4 +1,5 @@
-﻿using NobleTech.Products.PathEditor.Collections;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using NobleTech.Products.PathEditor.Collections;
 using NobleTech.Products.PathEditor.Utils;
 using System.Diagnostics;
 using System.Windows;
@@ -6,12 +7,15 @@ using System.Windows.Media;
 
 namespace NobleTech.Products.PathEditor.ViewModels;
 
-internal class DrawablePath
+internal class DrawablePath : ObservableObject
 {
+    private readonly EditorViewModel parent;
     private readonly Vector inflation;
 
-    public DrawablePath(IEnumerable<Point> points, Color strokeColor, double strokeThickness)
+    public DrawablePath(IEnumerable<Point> points, Color strokeColor, double strokeThickness, EditorViewModel parent)
     {
+        this.parent = parent ?? throw new ArgumentNullException(nameof(parent));
+
         this.points = [.. points ?? throw new ArgumentNullException(nameof(points))];
         if (this.points.Count == 0)
             throw new ArgumentException("Path must contain at least one point", nameof(points));
@@ -28,6 +32,10 @@ internal class DrawablePath
             bounds.Union(point);
         bounds.Inflate(inflation.X, inflation.Y);
         Bounds = bounds;
+
+        parent.SelectedPaths.Added += (paths, path) => SelectedPaths_Changed(path == this);
+        parent.SelectedPaths.Removed += (paths, path) => SelectedPaths_Changed(path == this);
+        parent.SelectedPaths.Reset += paths => SelectedPaths_Changed(true);
     }
 
     private readonly ObservableList<Point, List<Point>> points;
@@ -48,8 +56,34 @@ internal class DrawablePath
 
     public Rect Bounds { get; private set; }
 
-    public static DrawablePath FromDrawnPath(DrawnPaths.DrawnPath drawnPath) =>
-        new([.. drawnPath.Points], drawnPath.StrokeColor, drawnPath.StrokeThickness);
+    public bool IsSelected => parent.SelectedPaths.Contains(this);
+
+    public bool HitTest(Point point)
+    {
+        if (!Bounds.Contains(point))
+            return false;
+        // Use the squared length to avoid repeated square root calculations
+        double strokeHalfThicknessSquared = StrokeThickness * StrokeThickness / 4;
+        return Points
+                .SelectFromPairs(
+                    (a, b) =>
+                    {
+                        Vector v = b - a;
+                        Debug.Assert(v.LengthSquared > 0, "Segment length should not be zero");
+                        // Project w onto v to find the closest point on the line segment  
+                        double projection = Vector.Multiply(point - a, v) / v.LengthSquared;
+                        Point closestPoint =
+                            projection < 0 ? a      // Start point
+                            : projection > 1 ? b    // End point
+                            : (a + projection * v); // Closest point on the segment
+                        // Check if distance to the closest point is less than the stroke thickness
+                        return (point - closestPoint).LengthSquared < strokeHalfThicknessSquared;
+                    })
+                .Any(isHit => isHit);
+    }
+
+    public static Func<DrawnPaths.DrawnPath, DrawablePath> FromDrawnPath(EditorViewModel parent) =>
+        drawnPath => new DrawablePath([.. drawnPath.Points], drawnPath.StrokeColor, drawnPath.StrokeThickness, parent);
 
     public static DrawnPaths.DrawnPath ToDrawnPath(DrawablePath drawablePath) =>
         new([.. drawablePath.Points], drawablePath.StrokeColor, drawablePath.StrokeThickness);
@@ -60,6 +94,16 @@ internal class DrawablePath
             args.Cancel = true;
     }
 
-    private void OnPointAdded(object sender, Point point) =>
+    private void OnPointAdded(object sender, Point point)
+    {
         Bounds = Bounds.UnionWith(RectUtils.AroundPoint(point, inflation));
+        OnPropertyChanged(nameof(Bounds));
+        OnPropertyChanged(nameof(SegmentCount));
+    }
+
+    private void SelectedPaths_Changed(bool isThisPath)
+    {
+        if (isThisPath)
+            OnPropertyChanged(nameof(IsSelected));
+    }
 }
