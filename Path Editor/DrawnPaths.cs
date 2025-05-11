@@ -1,6 +1,7 @@
 ﻿using NobleTech.Products.PathEditor.Utils;
 using System.Diagnostics;
 using System.IO;
+using System.Printing;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -224,6 +225,10 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         PrintDialog printDialog = new();
         if (printDialog.ShowDialog() != true)
             return;
+
+        // Set the print orientation to landscape (this would not affect what is shown in the print dialog)
+        if (printDialog.PrintTicket is not null)
+            printDialog.PrintTicket.PageOrientation = PageOrientation.Landscape;
 
         // Create a canvas and draw the paths
         Canvas canvas = new() { Background = Brushes.Transparent };
