@@ -5,6 +5,7 @@
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converter="clr-namespace:NobleTech.Products.PathEditor.Converters"
         xmlns:viewmodels="clr-namespace:NobleTech.Products.PathEditor.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance viewmodels:EditorViewModel}"
@@ -20,6 +21,7 @@
         <Style TargetType="xctk:ColorPicker">
             <Setter Property="Width" Value="50" />
         </Style>
+        <converter:ColorToSolidColorBackgroundConverter x:Key="ColorToSolidColorBackgroundConverter" Invert="True" />
     </Window.Resources>
     <Window.InputBindings>
         <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}" />
@@ -80,6 +82,10 @@
             <StackPanel Orientation="Horizontal">
                 <Label>Brush colour:</Label>
                 <xctk:ColorPicker SelectedColor="{Binding CurrentStrokeColor}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Label>Background:</Label>
+                <xctk:ColorPicker SelectedColor="{Binding Background, Converter={StaticResource ColorToSolidColorBackgroundConverter}}" />
             </StackPanel>
         </Menu>
         <Border Margin="5" BorderBrush="Black" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">

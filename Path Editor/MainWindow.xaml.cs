@@ -30,12 +30,14 @@ partial class MainWindow : Window
             oldViewModel.Paths.Added -= AddPath;
             oldViewModel.Paths.Removed -= RemovePath;
             oldViewModel.Paths.Reset -= Redraw;
+            oldViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
         if (e.NewValue is EditorViewModel newViewModel)
         {
             newViewModel.Paths.Added += AddPath;
             newViewModel.Paths.Removed += RemovePath;
             newViewModel.Paths.Reset += Redraw;
+            newViewModel.PropertyChanged += OnViewModelPropertyChanged;
         }
         Redraw();
     }
@@ -51,7 +53,14 @@ partial class MainWindow : Window
         views.Clear();
         if (DataContext is not EditorViewModel viewModel)
             return;
+        viewModel.Background?.DrawTo(Canvas);
         views.AddRange(viewModel.Paths);
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(EditorViewModel.Background))
+            Redraw();
     }
 
     private void Canvas_TouchEvent(object sender, TouchEventArgs e)
