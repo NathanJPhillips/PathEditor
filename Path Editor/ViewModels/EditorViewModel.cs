@@ -88,6 +88,12 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     }
 
     /// <summary>
+    /// The background of the canvas, which could be a solid colour or an image, for example.
+    /// </summary>
+    [ObservableProperty]
+    public IBackground? background;
+
+    /// <summary>
     /// The color of the stroke used to draw new paths.
     /// </summary>
     [ObservableProperty]

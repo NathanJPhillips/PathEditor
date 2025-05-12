@@ -31,12 +31,14 @@ partial class MainWindow : Window, IDisposable
             oldViewModel.Paths.Added -= AddPath;
             oldViewModel.Paths.Removed -= RemovePath;
             oldViewModel.Paths.Reset -= Redraw;
+            oldViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
         if (e.NewValue is EditorViewModel newViewModel)
         {
             newViewModel.Paths.Added += AddPath;
             newViewModel.Paths.Removed += RemovePath;
             newViewModel.Paths.Reset += Redraw;
+            newViewModel.PropertyChanged += OnViewModelPropertyChanged;
         }
         Redraw();
         SetCursor();
@@ -52,6 +54,7 @@ partial class MainWindow : Window, IDisposable
         views.Clear();
         if (DataContext is not EditorViewModel viewModel)
             return;
+        viewModel.Background?.DrawTo(Canvas);
         views.AddRange(viewModel.Paths);
     }
 
@@ -59,6 +62,9 @@ partial class MainWindow : Window, IDisposable
     {
         switch (e.PropertyName)
         {
+        case nameof(EditorViewModel.Background):
+            Redraw();
+            break;
         case nameof(EditorViewModel.CurrentStrokeThickness):
             SetCursor();
             break;

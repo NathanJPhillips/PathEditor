@@ -33,12 +33,14 @@ partial class BabyPaintWindow : Window, IDisposable
             oldViewModel.Paths.Added -= AddPath;
             oldViewModel.Paths.Removed -= RemovePath;
             oldViewModel.Paths.Reset -= Redraw;
+            oldViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
         if (e.NewValue is EditorViewModel newViewModel)
         {
             newViewModel.Paths.Added += AddPath;
             newViewModel.Paths.Removed += RemovePath;
             newViewModel.Paths.Reset += Redraw;
+            newViewModel.PropertyChanged += OnViewModelPropertyChanged;
         }
         Redraw();
         SetCursor();
@@ -55,6 +57,7 @@ partial class BabyPaintWindow : Window, IDisposable
         views.Clear();
         if (DataContext is not EditorViewModel viewModel)
             return;
+        viewModel.Background?.DrawTo(Canvas);
         views.AddRange(viewModel.Paths);
     }
 
@@ -62,6 +65,9 @@ partial class BabyPaintWindow : Window, IDisposable
     {
         switch (e.PropertyName)
         {
+        case nameof(EditorViewModel.Background):
+            Redraw();
+            break;
         case nameof(EditorViewModel.CurrentStrokeThickness):
             SetCursor();
             break;
