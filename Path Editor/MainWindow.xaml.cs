@@ -152,6 +152,40 @@ partial class MainWindow : Window, IDisposable
             viewModel.AutoSave();
     }
 
+    private class CommandForwarder(Func<EditorViewModel, ICommand> getCommand) : CommandForwarder<EditorViewModel>(getCommand) { }
+
+    private readonly CommandForwarder newCommand = new(viewModel => viewModel.NewCommand);
+    private void OnNewExecuted(object sender, ExecutedRoutedEventArgs e) => newCommand.ExecuteCommand(DataContext, e);
+    private void OnNewCanExecute(object sender, CanExecuteRoutedEventArgs e) => newCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder openCommand = new(viewModel => viewModel.OpenCommand);
+    private void OnOpenExecuted(object sender, ExecutedRoutedEventArgs e) => openCommand.ExecuteCommand(DataContext, e);
+    private void OnOpenCanExecute(object sender, CanExecuteRoutedEventArgs e) => openCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder saveCommand = new(viewModel => viewModel.SaveCommand);
+    private void OnSaveExecuted(object sender, ExecutedRoutedEventArgs e) => saveCommand.ExecuteCommand(DataContext, e);
+    private void OnSaveCanExecute(object sender, CanExecuteRoutedEventArgs e) => saveCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder saveAsCommand = new(viewModel => viewModel.SaveAsCommand);
+    private void OnSaveAsExecuted(object sender, ExecutedRoutedEventArgs e) => saveAsCommand.ExecuteCommand(DataContext, e);
+    private void OnSaveAsCanExecute(object sender, CanExecuteRoutedEventArgs e) => saveAsCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder printCommand = new(viewModel => viewModel.PrintCommand);
+    private void OnPrintExecuted(object sender, ExecutedRoutedEventArgs e) => printCommand.ExecuteCommand(DataContext, e);
+    private void OnPrintCanExecute(object sender, CanExecuteRoutedEventArgs e) => printCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder closeCommand = new(viewModel => viewModel.CloseCommand);
+    private void OnCloseExecuted(object sender, ExecutedRoutedEventArgs e) => closeCommand.ExecuteCommand(DataContext, e);
+    private void OnCloseCanExecute(object sender, CanExecuteRoutedEventArgs e) => closeCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder undoCommand = new(viewModel => viewModel.UndoStack.UndoCommand);
+    private void OnUndoExecuted(object sender, ExecutedRoutedEventArgs e) => undoCommand.ExecuteCommand(DataContext, e);
+    private void OnUndoCanExecute(object sender, CanExecuteRoutedEventArgs e) => undoCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder redoCommand = new(viewModel => viewModel.UndoStack.RedoCommand);
+    private void OnRedoExecuted(object sender, ExecutedRoutedEventArgs e) => redoCommand.ExecuteCommand(DataContext, e);
+    private void OnRedoCanExecute(object sender, CanExecuteRoutedEventArgs e) => redoCommand.CanExecuteCommand(DataContext, e);
+
     public void Dispose()
     {
         timer.Dispose();

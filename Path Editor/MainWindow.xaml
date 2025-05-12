@@ -23,28 +23,32 @@
         </Style>
         <converter:ColorToSolidColorBackgroundConverter x:Key="ColorToSolidColorBackgroundConverter" Invert="True" />
     </Window.Resources>
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.New" Executed="OnNewExecuted" CanExecute="OnNewCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Open" Executed="OnOpenExecuted" CanExecute="OnOpenCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Save" Executed="OnSaveExecuted" CanExecute="OnSaveCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.SaveAs" Executed="OnSaveAsExecuted" CanExecute="OnSaveAsCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Print" Executed="OnPrintExecuted" CanExecute="OnPrintCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Close" Executed="OnCloseExecuted" CanExecute="OnCloseCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Undo" Executed="OnUndoExecuted" CanExecute="OnUndoCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Redo" Executed="OnRedoExecuted" CanExecute="OnRedoCanExecute"/>
+    </Window.CommandBindings>
     <Window.InputBindings>
-        <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}" />
-        <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}" />
-        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
-        <KeyBinding Key="P" Modifiers="Control" Command="{Binding PrintCommand}" />
-        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoStack.UndoCommand}" />
-        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding UndoStack.RedoCommand}" />
         <KeyBinding Key="F11" Command="{Binding BabyPaintViewCommand}" />
     </Window.InputBindings>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
-                <MenuItem Header="_New" Command="{Binding NewCommand}" InputGestureText="Ctrl+N" />
-                <MenuItem Header="_Open" Command="{Binding OpenCommand}" InputGestureText="Ctrl+O" />
-                <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGestureText="Ctrl+S" />
-                <MenuItem Header="Save _As" Command="{Binding SaveAsCommand}" />
-                <MenuItem Header="_Print" Command="{Binding PrintCommand}" InputGestureText="Ctrl+P" />
+                <MenuItem Header="_New" Command="ApplicationCommands.New" InputGestureText="Ctrl+N" />
+                <MenuItem Header="_Open" Command="ApplicationCommands.Open" InputGestureText="Ctrl+O" />
+                <MenuItem Header="_Save" Command="ApplicationCommands.Save" InputGestureText="Ctrl+S" />
+                <MenuItem Header="Save _As" Command="ApplicationCommands.SaveAs" />
+                <MenuItem Header="_Print" Command="ApplicationCommands.Print" InputGestureText="Ctrl+P" />
                 <Separator />
-                <MenuItem Header="_Close" Command="{Binding CloseCommand}" InputGestureText="Alt+F4" />
+                <MenuItem Header="_Close" Command="ApplicationCommands.Close" InputGestureText="Alt+F4" />
             </MenuItem>
             <MenuItem Header="_Edit">
-                <MenuItem Command="{Binding UndoStack.UndoCommand}" InputGestureText="Ctrl+Z">
+                <MenuItem Command="ApplicationCommands.Undo" InputGestureText="Ctrl+Z">
                     <MenuItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <AccessText>_Undo</AccessText>
@@ -52,7 +56,7 @@
                         </StackPanel>
                     </MenuItem.Header>
                 </MenuItem>
-                <MenuItem Command="{Binding UndoStack.RedoCommand}" InputGestureText="Ctrl+Y">
+                <MenuItem Command="ApplicationCommands.Redo" InputGestureText="Ctrl+Y">
                     <MenuItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <AccessText>_Redo</AccessText>

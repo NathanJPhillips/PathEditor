@@ -15,13 +15,17 @@
     <Window.Resources>
         <converter:ColorToSolidColorBrushConverter x:Key="ColorToSolidColorBrushConverter" />
     </Window.Resources>
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.New" Executed="OnNewExecuted" CanExecute="OnNewCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Open" Executed="OnOpenExecuted" CanExecute="OnOpenCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Save" Executed="OnSaveExecuted" CanExecute="OnSaveCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.SaveAs" Executed="OnSaveAsExecuted" CanExecute="OnSaveAsCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Print" Executed="OnPrintExecuted" CanExecute="OnPrintCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Close" Executed="OnCloseExecuted" CanExecute="OnCloseCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Undo" Executed="OnUndoExecuted" CanExecute="OnUndoCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Redo" Executed="OnRedoExecuted" CanExecute="OnRedoCanExecute"/>
+    </Window.CommandBindings>
     <Window.InputBindings>
-        <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}" />
-        <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}" />
-        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
-        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoStack.UndoCommand}" />
-        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding UndoStack.RedoCommand}" />
-        <KeyBinding Key="P" Modifiers="Control" Command="{Binding PrintCommand}" />
         <KeyBinding Key="Esc" Command="{Binding ExitBabyPaintViewCommand}" />
     </Window.InputBindings>
     <Grid>
