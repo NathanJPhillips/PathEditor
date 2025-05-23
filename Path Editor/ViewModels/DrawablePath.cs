@@ -7,7 +7,7 @@ using System.Windows.Media;
 
 namespace NobleTech.Products.PathEditor.ViewModels;
 
-internal class DrawablePath : ObservableObject
+internal partial class DrawablePath : ObservableObject
 {
     private readonly EditorViewModel parent;
     private readonly Size inflation;
@@ -56,6 +56,9 @@ internal class DrawablePath : ObservableObject
     public Rectangle Bounds { get; private set; }
 
     public bool IsSelected => parent.SelectedPaths.Contains(this);
+
+    [ObservableProperty]
+    private Vector movement;
 
     public bool HitTest(Point point)
     {

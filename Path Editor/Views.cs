@@ -95,6 +95,18 @@ internal sealed class Views(Canvas canvas) : IDisposable
             }
             else if (e.PropertyName == nameof(DrawablePath.StrokeColor))
                 path.SetValue(Shape.StrokeProperty, new SolidColorBrush(drawablePath.StrokeColor));
+            else if (e.PropertyName == nameof(DrawablePath.Movement))
+            {
+                SetMovement(path, drawablePath.Movement);
+                if (outline is not null)
+                    SetMovement(outline, drawablePath.Movement);
+            }
+        }
+
+        private static void SetMovement(Path path, Vector movement)
+        {
+            Canvas.SetLeft(path, movement.X);
+            Canvas.SetTop(path, movement.Y);
         }
 
         private void UpdateSelectionOutline()

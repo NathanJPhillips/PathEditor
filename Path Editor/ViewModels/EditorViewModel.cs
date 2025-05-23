@@ -17,6 +17,11 @@ namespace NobleTech.Products.PathEditor.ViewModels;
 /// </summary>
 internal partial class EditorViewModel : ObservableObject
 {
+    /// <summary>
+    /// Information about a move of paths currently in progress.
+    /// </summary>
+    private record MoveInfo(Point StartPoint, DrawablePath[] OriginalPaths);
+
     private FileInformation? fileInfo;
     /// <summary>
     /// The file path and save function of the currently opened file, or null if the file has not yet been saved.
@@ -39,10 +44,31 @@ internal partial class EditorViewModel : ObservableObject
     private readonly Dictionary<object, DrawablePath> currentPaths = [];
 
     /// <summary>
+    /// The amount of movement that is considered a "no move" action, used to determine if a click should be interpreted as a selection or a move.
+    /// </summary>
+    private Vector NoMoveDelta => CanvasSize / 500;
+
+    /// <summary>
+    /// The last point that was clicked in selection mode, used to determine if a click should be interpreted as a selection or a move.
+    /// </summary>
+    private Point? lastSelectPoint;
+
+    /// <summary>
+    /// Information about a move operation currently in progress, or null if no move is in progress.
+    /// </summary>
+    private MoveInfo? moveInfo;
+
+    /// <summary>
+    /// A timer to allow moves to start after a click has been held on a path for an amount of time.
+    /// </summary>
+    private readonly Timer moveTimer;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="EditorViewModel"/> class.
     /// </summary>
     public EditorViewModel()
     {
+        moveTimer = new(OnMoveTimeout);
         if (AutoSaver.Open() is DrawnPaths paths)
             Open(paths);
         Paths.CollectionChanged += (sender, args) => OnPathsChanged();
@@ -97,6 +123,24 @@ internal partial class EditorViewModel : ObservableObject
             // Remove the selection if we are switching to draw mode.
             selectedPaths.Clear();
             break;
+        }
+    }
+
+    /// <summary>
+    /// Whether a move operation is currently in progress.
+    /// </summary>
+    public bool IsMoving
+    {
+        get => moveInfo is not null;
+        set
+        {
+            if (value == IsMoving)
+                return;
+            if (value)
+                throw new InvalidOperationException("IsMoving cannot be set to true");
+            OnPropertyChanging();
+            moveInfo = null;
+            OnPropertyChanged();
         }
     }
 
@@ -420,30 +464,87 @@ internal partial class EditorViewModel : ObservableObject
 
     /// <summary>
     /// Processes a mouse or touch event at a point on the canvas in selection mode.
+    /// If the down and up events occur close together, the path under the point is selected or deselected.
+    /// If there is no up event for a while after the down event, move mode is entered.
+    /// In move mode the selected paths move with the mouse or touch point.
+    /// When the mouse or touch point is released, the paths are moved to the new location.
     /// </summary>
     /// <param name="point">The point on the canvas that received a mouse or touch event.</param>
     /// <param name="e">The event that occured.</param>
     private void SelectAtPoint(Point point, InputEvents e)
     {
-        if (e != InputEvents.Down)
-            return;
-        // Select the path under the point
-        IEnumerable<DrawablePath> pathsAtPoint = Paths.Reverse().Where(path => path.HitTest(point));
-        if (!pathsAtPoint.Any())
+        if (e == InputEvents.Down)
         {
-            // No path under the point, deselect all paths
-            DeselectAll();
-            return;
+            lastSelectPoint = point;
+            if (SelectedPaths.Any(path => path.HitTest(point)))
+                moveTimer.Start(TimeSpan.FromSeconds(0.5));
         }
-        foreach (DrawablePath path in pathsAtPoint)
+        else if (e == InputEvents.Up)
         {
-            if (!path.IsSelected)
+            moveTimer.Stop();
+            if (moveInfo is not null)
             {
-                selectedPaths.Add(path);
-                return;
+                // Complete the move operation
+                // Capture the moved paths and the move delta
+                DrawablePath[] selectedPaths = [.. SelectedPaths];
+                Vector delta = point - moveInfo.StartPoint;
+                // Capture the original paths to undo the move
+                DrawablePath[] originalPaths = moveInfo.OriginalPaths;
+                UndoStack.Do(
+                    "Move Paths",
+                    () =>
+                    MapPaths(
+                        path =>
+                        selectedPaths.Contains(path)
+                            ? new(
+                                path.Points.Select(point => point + delta),
+                                path.StrokeColor,
+                                path.StrokeThickness,
+                                this)
+                            : path),
+                    () => UndoPathChanges(originalPaths));
+                IsMoving = false;
             }
-            selectedPaths.Remove(path);
+            else if (point - lastSelectPoint < NoMoveDelta)
+            {
+                // Select the path under the point
+                IEnumerable<DrawablePath> pathsAtPoint = Paths.Reverse().Where(path => path.HitTest(point));
+                if (!pathsAtPoint.Any())
+                {
+                    // No path under the point, deselect all paths
+                    DeselectAll();
+                    return;
+                }
+                foreach (DrawablePath path in pathsAtPoint)
+                {
+                    if (!path.IsSelected)
+                    {
+                        selectedPaths.Add(path);
+                        return;
+                    }
+                    selectedPaths.Remove(path);
+                }
+            }
         }
+        else if (moveInfo is not null)
+        {
+            Vector delta = point - moveInfo.StartPoint;
+            foreach (DrawablePath path in SelectedPaths)
+                path.Movement = delta;
+        }
+    }
+
+    /// <summary>
+    /// Handles the timeout event for the move timer, starting a move. This is triggered when a click has been held for a certain amount of time.
+    /// </summary>
+    private void OnMoveTimeout(object? _)
+    {
+        if (this.lastSelectPoint is not Point lastSelectPoint)
+            return;
+        OnPropertyChanging(nameof(IsMoving));
+        moveInfo = new(lastSelectPoint, [..Paths]);
+        this.lastSelectPoint = null;
+        OnPropertyChanged(nameof(IsMoving));
     }
 
     /// <summary>
@@ -668,17 +769,6 @@ internal partial class EditorViewModel : ObservableObject
                 path.StrokeColor,
                 path.StrokeThickness,
                 this));
-
-    private void MovePaths(IEnumerable<DrawablePath> paths, Vector delta) =>
-        MapPaths(
-            path =>
-            paths.Contains(path)
-                ? new(
-                    path.Points.Select(point => point + delta),
-                    path.StrokeColor,
-                    path.StrokeThickness,
-                    this)
-                : path);
 
     /// <summary>
     /// Reverts the paths on the canvas to a previously saved state.
