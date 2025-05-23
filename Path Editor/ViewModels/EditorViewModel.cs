@@ -1,12 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NobleTech.Products.PathEditor.Collections;
+using NobleTech.Products.PathEditor.Geometry;
 using NobleTech.Products.PathEditor.Utils;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Windows;
 using System.Windows.Media;
+using Clipboard = System.Windows.Clipboard;
+using Matrix = NobleTech.Products.PathEditor.Geometry.Matrix;
 
 namespace NobleTech.Products.PathEditor.ViewModels;
 
@@ -450,8 +452,7 @@ internal partial class EditorViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(BoundsArentEmpty))]
     private void CropToPaths()
     {
-        Rect bounds = GetBounds();
-        if (bounds.IsZeroSize())
+        if (GetBounds() is not Rectangle bounds)
             return;
 
         DrawablePath[] oldPaths = [.. Paths];
@@ -461,13 +462,7 @@ internal partial class EditorViewModel : ObservableObject
             () =>
             {
                 CanvasSize = bounds.Size;
-                MapPaths(
-                    path =>
-                    new(
-                        points: [.. path.Points.Select(point => (Point)(point - bounds.TopLeft))],
-                        path.StrokeColor,
-                        path.StrokeThickness,
-                        this));
+                MovePaths(new Point() - bounds.Origin);
             },
             () =>
             {
@@ -490,15 +485,18 @@ internal partial class EditorViewModel : ObservableObject
     /// <param name="keepPathsProportional">Whether to keep the paths proportional to their original size.</param>
     private void ResizeCanvas(Size canvasSize, bool keepPathsProportional)
     {
-        Vector scale = new(canvasSize.Width / CanvasSize.Width, canvasSize.Height / CanvasSize.Height);
-        Vector offset = new();
+        Matrix transformation = canvasSize / (Vector)CanvasSize;
         if (keepPathsProportional)
         {
-            scale.X = scale.Y = Math.Min(scale.X, scale.Y);
-            offset.X = (canvasSize.Width - CanvasSize.Width * scale.X) / 2;
-            offset.Y = (canvasSize.Height - CanvasSize.Height * scale.Y) / 2;
+            double scale = Math.Min(transformation.M11, transformation.M22);
+            transformation =
+                Matrix.CreateScale(scale)
+                    * Matrix.CreateTranslation(
+                        (canvasSize.Width - CanvasSize.Width * scale) / 2,
+                        (canvasSize.Height - CanvasSize.Height * scale) / 2);
         }
-        double thicknessScale = (scale.X + scale.Y) / 2;
+        // Thickness doesn't have X- and Y- components so just multiply it by the average
+        double thicknessScale = (transformation.M11 + transformation.M22) / 2;
 
         DrawablePath[] oldPaths = [.. Paths];
         Size oldCanvasSize = CanvasSize;
@@ -510,14 +508,7 @@ internal partial class EditorViewModel : ObservableObject
                 MapPaths(
                     path =>
                     new(
-                        points:
-                            [..
-                                path.Points.Select(
-                                    point =>
-                                    new Point(
-                                        point.X * scale.X + offset.X,
-                                        point.Y * scale.Y + offset.Y))
-                            ],
+                        path.Points.Select(point => point * transformation),
                         path.StrokeColor,
                         path.StrokeThickness * thicknessScale,
                         this));
@@ -535,28 +526,17 @@ internal partial class EditorViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(BoundsArentEmpty))]
     private void FitToCanvas()
     {
-        Rect bounds = GetBounds();
-        if (bounds.IsZeroSize())
+        if (GetBounds() is not Rectangle bounds)
             return;
+
+        Matrix transformation =
+            Matrix.CreateTranslation(Point.Origin - bounds.Origin)
+                * (CanvasSize / (Vector)bounds.Size);
 
         DrawablePath[] oldPaths = [.. Paths];
         UndoStack.Do(
             "Fit to Canvas",
-            () =>
-            MapPaths(
-                path =>
-                new(
-                    points:
-                        [..
-                            path.Points.Select(
-                                point =>
-                                new Point(
-                                    (point.X  - bounds.Left) / bounds.Width * CanvasSize.Width,
-                                    (point.Y - bounds.Top) / bounds.Height * CanvasSize.Height))
-                        ],
-                    path.StrokeColor,
-                    path.StrokeThickness,
-                    this)),
+            () => TransformPaths(transformation),
             () => UndoPathChanges(oldPaths));
     }
 
@@ -566,25 +546,17 @@ internal partial class EditorViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(BoundsArentEmpty))]
     private void CenterOnCanvas()
     {
-        Rect bounds = GetBounds();
-        if (bounds.IsZeroSize())
+        if (GetBounds() is not Rectangle bounds)
             return;
 
-        Point pathCenter = bounds.Center();
+        Point pathCenter = bounds.Center;
         Point canvasCenter = new(CanvasSize.Width / 2, CanvasSize.Height / 2);
         Vector offset = canvasCenter - pathCenter;
 
         DrawablePath[] oldPaths = [.. Paths];
         UndoStack.Do(
             "Center on Canvas",
-            () =>
-            MapPaths(
-                path =>
-                new(
-                    points: [.. path.Points.Select(point => point + offset)],
-                    path.StrokeColor,
-                    path.StrokeThickness,
-                    this)),
+            () => MovePaths(offset),
             () => UndoPathChanges(oldPaths));
     }
 
@@ -596,7 +568,7 @@ internal partial class EditorViewModel : ObservableObject
         selectedPaths.Clear();
     }
 
-    private bool BoundsArentEmpty() => !GetBounds().IsZeroSize();
+    private bool BoundsArentEmpty() => GetBounds() is not null;
 
     private void OnPathsChanged()
     {
@@ -658,13 +630,11 @@ internal partial class EditorViewModel : ObservableObject
     /// Gets the bounds of the drawn paths.
     /// </summary>
     /// <returns>The bounds of the drawn paths.</returns>
-    private Rect GetBounds()
+    private Rectangle? GetBounds()
     {
-        if (Paths.Count == 0)
-            return Rect.Empty;
-        Rect bounds = paths[0].Bounds;
+        Rectangle? bounds = null;
         foreach (DrawablePath path in Paths)
-            bounds.Union(path.Bounds);
+            bounds |= path.Bounds;
         return bounds;
     }
 
@@ -680,6 +650,35 @@ internal partial class EditorViewModel : ObservableObject
         Debug.Assert(SelectedPaths.All(Paths.Contains));
         currentPaths.Clear();
     }
+
+    private void TransformPaths(Matrix transformation) =>
+        MapPaths(
+            path =>
+            new(
+                path.Points.Select(point => point * transformation),
+                path.StrokeColor,
+                path.StrokeThickness,
+                this));
+
+    private void MovePaths(Vector delta) =>
+        MapPaths(
+            path =>
+            new(
+                path.Points.Select(point => point + delta),
+                path.StrokeColor,
+                path.StrokeThickness,
+                this));
+
+    private void MovePaths(IEnumerable<DrawablePath> paths, Vector delta) =>
+        MapPaths(
+            path =>
+            paths.Contains(path)
+                ? new(
+                    path.Points.Select(point => point + delta),
+                    path.StrokeColor,
+                    path.StrokeThickness,
+                    this)
+                : path);
 
     /// <summary>
     /// Reverts the paths on the canvas to a previously saved state.

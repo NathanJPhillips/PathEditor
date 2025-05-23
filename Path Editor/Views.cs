@@ -1,10 +1,11 @@
-﻿using NobleTech.Products.PathEditor.Utils;
+﻿using NobleTech.Products.PathEditor.Geometry;
+using NobleTech.Products.PathEditor.Utils;
 using NobleTech.Products.PathEditor.ViewModels;
 using System.ComponentModel;
-using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using AnyGeometry = System.Windows.Media.Geometry;
 
 namespace NobleTech.Products.PathEditor;
 
@@ -45,7 +46,7 @@ internal sealed class Views(Canvas canvas) : IDisposable
         {
             this.drawablePath = drawablePath;
             this.canvas = canvas;
-            segment = new(drawablePath.Points.Skip(1), isStroked: true);
+            segment = new(drawablePath.Points.Skip(1).Select(pt => (System.Windows.Point)pt), isStroked: true);
             path =
                 new()
                 {
@@ -111,7 +112,7 @@ internal sealed class Views(Canvas canvas) : IDisposable
             new()
             {
                 Data =
-                    Geometry.Combine(
+                    AnyGeometry.Combine(
                         CreatePathGeometry(drawablePath.Points, drawablePath.StrokeThickness / 2 + OutlineThickness),
                         CreatePathGeometry(drawablePath.Points, drawablePath.StrokeThickness / 2),
                         GeometryCombineMode.Exclude,
@@ -120,9 +121,9 @@ internal sealed class Views(Canvas canvas) : IDisposable
                 IsHitTestVisible = false,
             };
 
-        private static Geometry CreatePathGeometry(IEnumerable<Point> points, double strokeHalfThickness) =>
+        private static AnyGeometry CreatePathGeometry(IEnumerable<Point> points, double strokeHalfThickness) =>
             points
-                .SelectWithNext<Point, IEnumerable<Geometry>>(
+                .SelectWithNext<Point, IEnumerable<AnyGeometry>>(
                     (Point begin, Point? next) =>
                     {
                         // Create an ellipse at the start of the line segment
@@ -132,13 +133,12 @@ internal sealed class Views(Canvas canvas) : IDisposable
                             : [startCircle, CreateRotatedRectangle(begin, end, strokeHalfThickness)];
                     })
                 .SelectMany(geometries => geometries)
-                .Aggregate((geometry1, geometry2) => Geometry.Combine(geometry1, geometry2, GeometryCombineMode.Union, Transform.Identity));
+                .Aggregate((geometry1, geometry2) => AnyGeometry.Combine(geometry1, geometry2, GeometryCombineMode.Union, Transform.Identity));
 
         private static StreamGeometry CreateRotatedRectangle(Point begin, Point end, double width)
         {
             // Calculate the direction vector from begin to end
-            Vector direction = end - begin;
-            direction.Normalize();
+            Vector direction = (end - begin).Normalised;
             // Calculate the perpendicular vector for the rectangle's width
             Vector widthVector = new Vector(-direction.Y, direction.X) * width;
 

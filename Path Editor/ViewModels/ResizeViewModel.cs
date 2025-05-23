@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using System.Windows;
+using NobleTech.Products.PathEditor.Geometry;
 
 namespace NobleTech.Products.PathEditor.ViewModels;
 

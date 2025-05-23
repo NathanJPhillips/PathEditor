@@ -1,8 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using NobleTech.Products.PathEditor.Collections;
+using NobleTech.Products.PathEditor.Geometry;
 using NobleTech.Products.PathEditor.Utils;
 using System.Diagnostics;
-using System.Windows;
 using System.Windows.Media;
 
 namespace NobleTech.Products.PathEditor.ViewModels;
@@ -10,7 +10,7 @@ namespace NobleTech.Products.PathEditor.ViewModels;
 internal class DrawablePath : ObservableObject
 {
     private readonly EditorViewModel parent;
-    private readonly Vector inflation;
+    private readonly Size inflation;
 
     public DrawablePath(IEnumerable<Point> points, Color strokeColor, double strokeThickness, EditorViewModel parent)
     {
@@ -24,14 +24,13 @@ internal class DrawablePath : ObservableObject
 
         StrokeColor = strokeColor;
         StrokeThickness = strokeThickness;
-        inflation = new Vector(StrokeThickness / 2, StrokeThickness / 2);
+        inflation = new(StrokeThickness / 2, StrokeThickness / 2);
 
         Point firstPoint = this.points[0];
-        Rect bounds = new(firstPoint, firstPoint);
+        Rectangle? bounds = null;
         foreach (Point point in Points)
-            bounds.Union(point);
-        bounds.Inflate(inflation.X, inflation.Y);
-        Bounds = bounds;
+            bounds |= point;
+        Bounds = bounds?.Inflate(inflation) ?? Rectangle.Empty;
 
         parent.SelectedPaths.Added += (paths, path) => SelectedPaths_Changed(path == this);
         parent.SelectedPaths.Removed += (paths, path) => SelectedPaths_Changed(path == this);
@@ -54,7 +53,7 @@ internal class DrawablePath : ObservableObject
 
     public double StrokeThickness { get; }
 
-    public Rect Bounds { get; private set; }
+    public Rectangle Bounds { get; private set; }
 
     public bool IsSelected => parent.SelectedPaths.Contains(this);
 
@@ -71,7 +70,7 @@ internal class DrawablePath : ObservableObject
                         Vector v = b - a;
                         Debug.Assert(v.LengthSquared > 0, "Segment length should not be zero");
                         // Project w onto v to find the closest point on the line segment  
-                        double projection = Vector.Multiply(point - a, v) / v.LengthSquared;
+                        double projection = Vector.DotProduct(point - a, v) / v.LengthSquared;
                         Point closestPoint =
                             projection < 0 ? a      // Start point
                             : projection > 1 ? b    // End point
@@ -96,7 +95,7 @@ internal class DrawablePath : ObservableObject
 
     private void OnPointAdded(object sender, Point point)
     {
-        Bounds = Bounds.UnionWith(RectUtils.AroundPoint(point, inflation));
+        Bounds |= new Rectangle(point, Size.Empty).Inflate(inflation);
         OnPropertyChanged(nameof(Bounds));
         OnPropertyChanged(nameof(SegmentCount));
     }
