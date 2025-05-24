@@ -11,6 +11,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="Icons\Draw.png" />
+    <Resource Include="Icons\Logo.png" />
+    <Resource Include="Icons\Select.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Extended.Wpf.Toolkit" Version="4.7.25104.5739" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.4" />

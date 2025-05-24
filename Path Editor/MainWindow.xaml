@@ -93,8 +93,12 @@
                 <Border Width="1" Height="20" Margin="1.5,0,0,0" Background="Gray" VerticalAlignment="Center" />
             </StackPanel>
             <StackPanel Orientation="Horizontal">
-                <ToggleButton IsChecked="{Binding Editor.Mode, Converter={StaticResource EqualValuesConverter}, ConverterParameter={x:Static viewmodels:EditorModes.Draw}}">Draw</ToggleButton>
-                <ToggleButton IsChecked="{Binding Editor.Mode, Converter={StaticResource EqualValuesConverter}, ConverterParameter={x:Static viewmodels:EditorModes.Select}}">Select</ToggleButton>
+                <ToggleButton IsChecked="{Binding Editor.Mode, Converter={StaticResource EqualValuesConverter}, ConverterParameter={x:Static viewmodels:EditorModes.Draw}}">
+                    <Image Source="Icons/Draw.png" Height="16" />
+                </ToggleButton>
+                <ToggleButton IsChecked="{Binding Editor.Mode, Converter={StaticResource EqualValuesConverter}, ConverterParameter={x:Static viewmodels:EditorModes.Select}}">
+                    <Image Source="Icons/Select.png" Height="16" />
+                </ToggleButton>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <Label>Brush width:</Label>
