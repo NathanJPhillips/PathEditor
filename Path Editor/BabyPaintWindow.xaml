@@ -5,6 +5,7 @@
         xmlns:system="clr-namespace:System;assembly=System.Runtime"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:NobleTech.Products.PathEditor"
         xmlns:pb="clr-namespace:NobleTech.Products.PathEditor.PushBinding"
         xmlns:converter="clr-namespace:NobleTech.Products.PathEditor.Converters"
         xmlns:viewmodels="clr-namespace:NobleTech.Products.PathEditor.ViewModels"
@@ -41,84 +42,51 @@
         </Canvas>
         <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Margin="30">
             <StackPanel.Resources>
-                <Style TargetType="Button">
-                    <Setter Property="Background" Value="Transparent" />
-                    <Setter Property="BorderThickness" Value="0" />
+                <Style TargetType="local:EasyPressButton">
                     <Setter Property="Margin" Value="0,5,0,5" />
                     <Setter Property="Command" Value="{Binding SetColorCommand}" />
                     <Setter Property="Width" Value="75" />
                     <Setter Property="Height" Value="75" />
-                    <Setter Property="Padding" Value="0" />
-                </Style>
-                <Style TargetType="Ellipse">
-                    <Setter Property="Width" Value="75" />
-                    <Setter Property="Height" Value="75" />
                 </Style>
             </StackPanel.Resources>
-            <Button CommandParameter="{x:Static Colors.Black}">
-                <Ellipse Fill="Black" />
-            </Button>
-            <Button CommandParameter="{x:Static Colors.Red}">
-                <Ellipse Fill="Red" />
-            </Button>
-            <Button CommandParameter="{x:Static Colors.Orange}">
-                <Ellipse Fill="Orange" />
-            </Button>
-            <Button CommandParameter="{x:Static Colors.Yellow}">
-                <Ellipse Fill="Yellow" />
-            </Button>
-            <Button CommandParameter="{x:Static Colors.Green}">
-                <Ellipse Fill="Green" />
-            </Button>
-            <Button CommandParameter="{x:Static Colors.Blue}">
-                <Ellipse Fill="Blue" />
-            </Button>
-            <Button CommandParameter="{x:Static Colors.Purple}">
-                <Ellipse Fill="Purple" />
-            </Button>
-            <Button CommandParameter="{x:Static Colors.Violet}">
-                <Ellipse Fill="Violet" />
-            </Button>
+            <local:EasyPressButton CommandParameter="{x:Static Colors.Black}" Fill="Black" />
+            <local:EasyPressButton CommandParameter="{x:Static Colors.Red}" Fill="Red" />
+            <local:EasyPressButton CommandParameter="{x:Static Colors.Orange}" Fill="Orange" />
+            <local:EasyPressButton CommandParameter="{x:Static Colors.Yellow}" Fill="Yellow" />
+            <local:EasyPressButton CommandParameter="{x:Static Colors.Green}" Fill="Green" />
+            <local:EasyPressButton CommandParameter="{x:Static Colors.Blue}" Fill="Blue" />
+            <local:EasyPressButton CommandParameter="{x:Static Colors.Purple}" Fill="Purple" />
+            <local:EasyPressButton CommandParameter="{x:Static Colors.Violet}" Fill="Violet" />
         </StackPanel>
         <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="30">
             <StackPanel.Resources>
-                <Style TargetType="Button">
-                    <Setter Property="Background" Value="Transparent" />
-                    <Setter Property="BorderThickness" Value="0" />
+                <Style TargetType="local:EasyPressButton">
                     <Setter Property="Margin" Value="0,5,0,5" />
                     <Setter Property="Command" Value="{Binding SetThicknessCommand}" />
-                    <Setter Property="Width" Value="75" />
-                    <Setter Property="Height" Value="75" />
-                    <Setter Property="Padding" Value="0" />
-                </Style>
-                <Style TargetType="Ellipse">
                     <Setter Property="Fill" Value="{Binding CurrentStrokeColor, Converter={StaticResource ColorToSolidColorBrushConverter}}" />
+                    <Setter Property="Height" Value="75" />
                 </Style>
             </StackPanel.Resources>
-            <Button>
-                <Button.CommandParameter>
+            <local:EasyPressButton Width="20">
+                <local:EasyPressButton.CommandParameter>
                     <system:Double>20</system:Double>
-                </Button.CommandParameter>
-                <Ellipse Width="20" Height="20" />
-            </Button>
-            <Button>
-                <Button.CommandParameter>
+                </local:EasyPressButton.CommandParameter>
+            </local:EasyPressButton>
+            <local:EasyPressButton Width="30">
+                <local:EasyPressButton.CommandParameter>
                     <system:Double>30</system:Double>
-                </Button.CommandParameter>
-                <Ellipse Width="30" Height="30" />
-            </Button>
-            <Button>
-                <Button.CommandParameter>
+                </local:EasyPressButton.CommandParameter>
+            </local:EasyPressButton>
+            <local:EasyPressButton Width="40">
+                <local:EasyPressButton.CommandParameter>
                     <system:Double>40</system:Double>
-                </Button.CommandParameter>
-                <Ellipse Width="40" Height="40" />
-            </Button>
-            <Button>
-                <Button.CommandParameter>
+                </local:EasyPressButton.CommandParameter>
+            </local:EasyPressButton>
+            <local:EasyPressButton Width="50">
+                <local:EasyPressButton.CommandParameter>
                     <system:Double>50</system:Double>
-                </Button.CommandParameter>
-                <Ellipse Width="50" Height="50" />
-            </Button>
+                </local:EasyPressButton.CommandParameter>
+            </local:EasyPressButton>
         </StackPanel>
     </Grid>
 </Window>
