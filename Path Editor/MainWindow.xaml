@@ -46,80 +46,78 @@
         <KeyBinding Key="F11" Command="{Binding BabyPaintViewCommand}" />
     </Window.InputBindings>
     <DockPanel>
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_File">
-                <MenuItem Header="_New" Command="ApplicationCommands.New" InputGestureText="Ctrl+N" />
-                <MenuItem Header="_Open" Command="ApplicationCommands.Open" InputGestureText="Ctrl+O" />
-                <MenuItem Header="_Save" Command="ApplicationCommands.Save" InputGestureText="Ctrl+S" />
-                <MenuItem Header="Save _As" Command="ApplicationCommands.SaveAs" />
-                <MenuItem Header="_Print" Command="ApplicationCommands.Print" InputGestureText="Ctrl+P" />
-                <Separator />
-                <MenuItem Header="_Close" Command="ApplicationCommands.Close" InputGestureText="Alt+F4" />
-            </MenuItem>
-            <MenuItem Header="_Edit">
-                <MenuItem Command="ApplicationCommands.Undo" InputGestureText="Ctrl+Z">
-                    <MenuItem.Header>
-                        <StackPanel Orientation="Horizontal">
-                            <AccessText>_Undo</AccessText>
-                            <TextBlock Text="{Binding Editor.UndoStack.NextUndoName}" FontStyle="Italic" Margin="5,0,0,0" />
-                        </StackPanel>
-                    </MenuItem.Header>
-                </MenuItem>
-                <MenuItem Command="ApplicationCommands.Redo" InputGestureText="Ctrl+Y">
-                    <MenuItem.Header>
-                        <StackPanel Orientation="Horizontal">
-                            <AccessText>_Redo</AccessText>
-                            <TextBlock Text="{Binding Editor.UndoStack.NextRedoName}" FontStyle="Italic" Margin="5,0,0,0" />
-                        </StackPanel>
-                    </MenuItem.Header>
-                </MenuItem>
-                <Separator />
-                <MenuItem Header="Select _All" Command="ApplicationCommands.SelectAll" InputGestureText="Ctrl+A" />
-                <MenuItem Header="C_lear Selection" Command="{Binding Editor.DeselectAllCommand}" InputGestureText="Esc" />
-                <MenuItem Header="_Invert Selection" Command="{Binding Editor.InvertSelectionCommand}" InputGestureText="Ctrl+I" />
-                <Separator />
-                <MenuItem Header="C_ut" Command="ApplicationCommands.Cut" InputGestureText="Ctrl+X" />
-                <MenuItem Header="_Copy" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C" />
-                <MenuItem Header="_Paste" Command="ApplicationCommands.Paste" InputGestureText="Ctrl+V" />
-                <Separator />
-                <MenuItem Header="_Delete" Command="ApplicationCommands.Delete" InputGestureText="Del" />
-                <MenuItem Header="D_uplicate" Command="{Binding Editor.DuplicateCommand}" InputGestureText="Ctrl+D" />
-            </MenuItem>
-            <MenuItem Header="_Image">
-                <MenuItem Header="_Crop to Paths" Command="{Binding Editor.CropToPathsCommand}" />
-                <MenuItem Header="_Resize Canvas..." Command="{Binding Editor.ResizeCanvasCommand}" />
-                <MenuItem Header="_Fit to Canvas" Command="{Binding Editor.FitToCanvasCommand}" />
-                <MenuItem Header="Cent_er on Canvas" Command="{Binding Editor.CenterOnCanvasCommand}" />
-            </MenuItem>
-            <MenuItem Header="_View">
-                <MenuItem Header="_Baby Paint" Command="{Binding BabyPaintViewCommand}" InputGestureText="F11" />
-                <MenuItem Header="_Preview Animation" Command="{Binding Editor.PreviewAnimationCommand}" />
-            </MenuItem>
-            <StackPanel Orientation="Horizontal">
-                <Border Width="1" Height="20" Background="Gray" VerticalAlignment="Center" />
-                <Border Width="1" Height="20" Margin="1.5,0,0,0" Background="Gray" VerticalAlignment="Center" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
+        <ToolBarTray DockPanel.Dock="Top">
+            <ToolBar>
+                <Menu>
+                    <MenuItem Header="_File">
+                        <MenuItem Header="_New" Command="ApplicationCommands.New" InputGestureText="Ctrl+N" />
+                        <MenuItem Header="_Open" Command="ApplicationCommands.Open" InputGestureText="Ctrl+O" />
+                        <MenuItem Header="_Save" Command="ApplicationCommands.Save" InputGestureText="Ctrl+S" />
+                        <MenuItem Header="Save _As" Command="ApplicationCommands.SaveAs" />
+                        <MenuItem Header="_Print" Command="ApplicationCommands.Print" InputGestureText="Ctrl+P" />
+                        <Separator />
+                        <MenuItem Header="_Close" Command="ApplicationCommands.Close" InputGestureText="Alt+F4" />
+                    </MenuItem>
+                    <MenuItem Header="_Edit">
+                        <MenuItem Command="ApplicationCommands.Undo" InputGestureText="Ctrl+Z">
+                            <MenuItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <AccessText>_Undo</AccessText>
+                                    <TextBlock Text="{Binding Editor.UndoStack.NextUndoName}" FontStyle="Italic" Margin="5,0,0,0" />
+                                </StackPanel>
+                            </MenuItem.Header>
+                        </MenuItem>
+                        <MenuItem Command="ApplicationCommands.Redo" InputGestureText="Ctrl+Y">
+                            <MenuItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <AccessText>_Redo</AccessText>
+                                    <TextBlock Text="{Binding Editor.UndoStack.NextRedoName}" FontStyle="Italic" Margin="5,0,0,0" />
+                                </StackPanel>
+                            </MenuItem.Header>
+                        </MenuItem>
+                        <Separator />
+                        <MenuItem Header="Select _All" Command="ApplicationCommands.SelectAll" InputGestureText="Ctrl+A" />
+                        <MenuItem Header="C_lear Selection" Command="{Binding Editor.DeselectAllCommand}" InputGestureText="Esc" />
+                        <MenuItem Header="_Invert Selection" Command="{Binding Editor.InvertSelectionCommand}" InputGestureText="Ctrl+I" />
+                        <Separator />
+                        <MenuItem Header="C_ut" Command="ApplicationCommands.Cut" InputGestureText="Ctrl+X" />
+                        <MenuItem Header="_Copy" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C" />
+                        <MenuItem Header="_Paste" Command="ApplicationCommands.Paste" InputGestureText="Ctrl+V" />
+                        <Separator />
+                        <MenuItem Header="_Delete" Command="ApplicationCommands.Delete" InputGestureText="Del" />
+                        <MenuItem Header="D_uplicate" Command="{Binding Editor.DuplicateCommand}" InputGestureText="Ctrl+D" />
+                    </MenuItem>
+                    <MenuItem Header="_Image">
+                        <MenuItem Header="_Crop to Paths" Command="{Binding Editor.CropToPathsCommand}" />
+                        <MenuItem Header="_Resize Canvas..." Command="{Binding Editor.ResizeCanvasCommand}" />
+                        <MenuItem Header="_Fit to Canvas" Command="{Binding Editor.FitToCanvasCommand}" />
+                        <MenuItem Header="Cent_er on Canvas" Command="{Binding Editor.CenterOnCanvasCommand}" />
+                    </MenuItem>
+                    <MenuItem Header="_View">
+                        <MenuItem Header="_Baby Paint" Command="{Binding BabyPaintViewCommand}" InputGestureText="F11" />
+                        <MenuItem Header="_Preview Animation" Command="{Binding Editor.PreviewAnimationCommand}" />
+                    </MenuItem>
+                </Menu>
+            </ToolBar>
+            <ToolBar>
                 <ToggleButton IsChecked="{Binding Editor.Mode, Converter={StaticResource EqualValuesConverter}, ConverterParameter={x:Static viewmodels:EditorModes.Draw}}">
                     <Image Source="Icons/Draw.png" Height="16" />
                 </ToggleButton>
                 <ToggleButton IsChecked="{Binding Editor.Mode, Converter={StaticResource EqualValuesConverter}, ConverterParameter={x:Static viewmodels:EditorModes.Select}}">
                     <Image Source="Icons/Select.png" Height="16" />
                 </ToggleButton>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
+            </ToolBar>
+            <ToolBar>
                 <Label>Brush width:</Label>
                 <xctk:DoubleUpDown Minimum="0" Value="{Binding Editor.CurrentStrokeThickness}" Width="50" Increment="1" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <Label>Brush colour:</Label>
+                <Label Margin="15,0,0,0">Brush colour:</Label>
                 <xctk:ColorPicker SelectedColor="{Binding Editor.CurrentStrokeColor}" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
+            </ToolBar>
+            <ToolBar>
                 <Label>Background:</Label>
                 <xctk:ColorPicker SelectedColor="{Binding Editor.Background, Converter={StaticResource ColorToSolidColorBackgroundConverter}}" />
-            </StackPanel>
-        </Menu>
+            </ToolBar>
+        </ToolBarTray>
         <Border Margin="5" BorderBrush="Black" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Viewbox>
                 <Canvas x:Name="Canvas" Width="{Binding Editor.CanvasSize.Width}" Height="{Binding Editor.CanvasSize.Height}"
