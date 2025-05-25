@@ -34,6 +34,9 @@
         <CommandBinding Command="ApplicationCommands.Undo" Executed="OnUndoExecuted" CanExecute="OnUndoCanExecute"/>
         <CommandBinding Command="ApplicationCommands.Redo" Executed="OnRedoExecuted" CanExecute="OnRedoCanExecute"/>
         <CommandBinding Command="ApplicationCommands.SelectAll" Executed="OnSelectAllExecuted" CanExecute="OnSelectAllCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Cut" Executed="OnCutExecuted" CanExecute="OnCutCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Copy" Executed="OnCopyExecuted" CanExecute="OnCopyCanExecute"/>
+        <CommandBinding Command="ApplicationCommands.Paste" Executed="OnPasteExecuted" CanExecute="OnPasteCanExecute"/>
         <CommandBinding Command="ApplicationCommands.Delete" Executed="OnDeleteExecuted" CanExecute="OnDeleteCanExecute"/>
     </Window.CommandBindings>
     <Window.InputBindings>
@@ -74,6 +77,10 @@
                 <MenuItem Header="Select _All" Command="ApplicationCommands.SelectAll" InputGestureText="Ctrl+A" />
                 <MenuItem Header="C_lear Selection" Command="{Binding Editor.DeselectAllCommand}" InputGestureText="Esc" />
                 <MenuItem Header="_Invert Selection" Command="{Binding Editor.InvertSelectionCommand}" InputGestureText="Ctrl+I" />
+                <Separator />
+                <MenuItem Header="C_ut" Command="ApplicationCommands.Cut" InputGestureText="Ctrl+X" />
+                <MenuItem Header="_Copy" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C" />
+                <MenuItem Header="_Paste" Command="ApplicationCommands.Paste" InputGestureText="Ctrl+V" />
                 <Separator />
                 <MenuItem Header="_Delete" Command="ApplicationCommands.Delete" InputGestureText="Del" />
                 <MenuItem Header="D_uplicate" Command="{Binding Editor.DuplicateCommand}" InputGestureText="Ctrl+D" />

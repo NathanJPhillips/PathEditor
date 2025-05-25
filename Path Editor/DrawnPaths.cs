@@ -43,6 +43,47 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         /// The thickness of the path's stroke.
         /// </summary>
         public readonly double StrokeThickness = strokeThickness;
+
+        /// <summary>
+        /// Load a <see cref="DrawnPath"> object from a binary representation.
+        /// </summary>
+        /// <param name="reader">The <see cref="BinaryReader"> to read from.</param>
+        /// <returns>The loaded <see cref="DrawnPath"> object.</returns>
+        public static DrawnPath LoadFromBinary(BinaryReader reader)
+        {
+            int pointCount = reader.ReadInt32();
+            var points = new Point[pointCount];
+            for (int pointIndex = 0; pointIndex < pointCount; pointIndex++)
+                points[pointIndex] = new(reader.ReadDouble(), reader.ReadDouble());
+            byte a = reader.ReadByte();
+            byte r = reader.ReadByte();
+            byte g = reader.ReadByte();
+            byte b = reader.ReadByte();
+            double strokeThickness = reader.ReadDouble();
+            return new(points, Color.FromArgb(a, r, g, b), strokeThickness);
+        }
+
+        /// <summary>
+        /// Saves the current <see cref="DrawnPath"> object to a binary representation.
+        /// </summary>
+        /// <param name="writer"> The <see cref="BinaryWriter"> to which to write.</param>
+        /// <remarks>
+        /// The binary representation will include the points, stroke color (ARGB), and stroke thickness.
+        /// </remarks>
+        public void SaveAsBinary(BinaryWriter writer)
+        {
+            writer.Write(Points.Length);
+            foreach (Point point in Points)
+            {
+                writer.Write(point.X);
+                writer.Write(point.Y);
+            }
+            writer.Write(StrokeColor.A);
+            writer.Write(StrokeColor.R);
+            writer.Write(StrokeColor.G);
+            writer.Write(StrokeColor.B);
+            writer.Write(StrokeThickness);
+        }
     }
 
     /// <summary>
@@ -68,18 +109,7 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         int pathCount = reader.ReadInt32();
         var paths = new DrawnPath[pathCount];
         for (int pathIndex = 0; pathIndex < pathCount; pathIndex++)
-        {
-            int pointCount = reader.ReadInt32();
-            var points = new Point[pointCount];
-            for (int pointIndex = 0; pointIndex < pointCount; pointIndex++)
-                points[pointIndex] = new(reader.ReadDouble(), reader.ReadDouble());
-            byte a = reader.ReadByte();
-            byte r = reader.ReadByte();
-            byte g = reader.ReadByte();
-            byte b = reader.ReadByte();
-            double strokeThickness = reader.ReadDouble();
-            paths[pathIndex] = new(points, Color.FromArgb(a, r, g, b), strokeThickness);
-        }
+            paths[pathIndex] = DrawnPath.LoadFromBinary(reader);
         return new(paths, new(width, height));
     }
 
@@ -98,19 +128,7 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         writer.Write(canvasSize.Height);
         writer.Write(drawnPaths.Length);
         foreach (DrawnPath path in drawnPaths)
-        {
-            writer.Write(path.Points.Length);
-            foreach (Point point in path.Points)
-            {
-                writer.Write(point.X);
-                writer.Write(point.Y);
-            }
-            writer.Write(path.StrokeColor.A);
-            writer.Write(path.StrokeColor.R);
-            writer.Write(path.StrokeColor.G);
-            writer.Write(path.StrokeColor.B);
-            writer.Write(path.StrokeThickness);
-        }
+            path.SaveAsBinary(writer);
     }
 
     /// <summary>

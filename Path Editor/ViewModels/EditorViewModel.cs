@@ -247,6 +247,62 @@ internal partial class EditorViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Cut the selected paths to the clipboard.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void Cut()
+    {
+        Copy();
+        Delete("Cut");
+    }
+
+    /// <summary>
+    /// Copy the selected paths to the clipboard.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void Copy()
+    {
+        using MemoryStream stream = new();
+        using (BinaryWriter writer = new(stream))
+        {
+            foreach (DrawnPaths.DrawnPath? path in SelectedPaths.Select(DrawablePath.ToDrawnPath))
+                path.SaveAsBinary(writer);
+        }
+        Clipboard.SetData("PathEditor", stream.ToArray());
+    }
+
+    /// <summary>
+    /// Paste the paths from the clipboard to the canvas.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanPaste))]
+    private void Paste()
+    {
+        if (!Clipboard.ContainsData("PathEditor"))
+            return;
+        List<DrawablePath> paths = [];
+        using (MemoryStream stream = new((byte[])Clipboard.GetData("PathEditor"), false))
+        {
+            using BinaryReader reader = new(stream);
+            while (stream.Position < stream.Length)
+                paths.Add(DrawablePath.FromDrawnPath(this)(DrawnPaths.DrawnPath.LoadFromBinary(reader)));
+        }
+        UndoStack.Do(
+            "Paste",
+            () =>
+            {
+                this.paths.AddRange(paths);
+                selectedPaths.ResetTo(paths);
+                Mode = EditorModes.Select;
+            },
+            () =>
+            {
+                this.paths.RemoveRange(paths);
+                selectedPaths.RemoveRange(paths);
+            });
+    }
+    private static bool CanPaste() => Clipboard.ContainsData("PathEditor");
+
+    /// <summary>
     /// Select all paths on the canvas.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanSelectAll))]
@@ -308,6 +364,8 @@ internal partial class EditorViewModel : ObservableObject
     private void OnSelectionChanged()
     {
         DeleteCommand.NotifyCanExecuteChanged();
+        CutCommand.NotifyCanExecuteChanged();
+        CopyCommand.NotifyCanExecuteChanged();
         SelectAllCommand.NotifyCanExecuteChanged();
         DeselectAllCommand.NotifyCanExecuteChanged();
         InvertSelectionCommand.NotifyCanExecuteChanged();

@@ -191,6 +191,18 @@ partial class MainWindow : Window, IDisposable
     private void OnSelectAllExecuted(object sender, ExecutedRoutedEventArgs e) => selectAllCommand.ExecuteCommand(DataContext, e);
     private void OnSelectAllCanExecute(object sender, CanExecuteRoutedEventArgs e) => selectAllCommand.CanExecuteCommand(DataContext, e);
 
+    private readonly CommandForwarder cutCommand = new(viewModel => viewModel.Editor.CutCommand);
+    private void OnCutExecuted(object sender, ExecutedRoutedEventArgs e) => cutCommand.ExecuteCommand(DataContext, e);
+    private void OnCutCanExecute(object sender, CanExecuteRoutedEventArgs e) => cutCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder copyCommand = new(viewModel => viewModel.Editor.CopyCommand);
+    private void OnCopyExecuted(object sender, ExecutedRoutedEventArgs e) => copyCommand.ExecuteCommand(DataContext, e);
+    private void OnCopyCanExecute(object sender, CanExecuteRoutedEventArgs e) => copyCommand.CanExecuteCommand(DataContext, e);
+
+    private readonly CommandForwarder pasteCommand = new(viewModel => viewModel.Editor.PasteCommand);
+    private void OnPasteExecuted(object sender, ExecutedRoutedEventArgs e) => pasteCommand.ExecuteCommand(DataContext, e);
+    private void OnPasteCanExecute(object sender, CanExecuteRoutedEventArgs e) => pasteCommand.CanExecuteCommand(DataContext, e);
+
     private readonly CommandForwarder deleteCommand = new(viewModel => viewModel.Editor.DeleteCommand);
     private void OnDeleteExecuted(object sender, ExecutedRoutedEventArgs e) => deleteCommand.ExecuteCommand(DataContext, e);
     private void OnDeleteCanExecute(object sender, CanExecuteRoutedEventArgs e) => deleteCommand.CanExecuteCommand(DataContext, e);
