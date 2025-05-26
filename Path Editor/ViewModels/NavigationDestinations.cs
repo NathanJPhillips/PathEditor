@@ -11,4 +11,5 @@ internal enum NavigationDestinations
     Resize,
     ApplyStyle,
     SetStyle,
+    CreateStyle,
 }

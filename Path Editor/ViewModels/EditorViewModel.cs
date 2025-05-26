@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using NobleTech.Products.PathEditor.Collections;
 using NobleTech.Products.PathEditor.Geometry;
 using NobleTech.Products.PathEditor.Utils;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -73,7 +74,7 @@ internal partial class EditorViewModel : ObservableObject
             Open(paths);
         Paths.CollectionChanged += (sender, args) => OnPathsChanged();
         SelectedPaths.CollectionChanged += (sender, args) => OnSelectionChanged();
-        Styles.CollectionChanged += (sender, args) => SetStyleCommand.NotifyCanExecuteChanged();
+        Styles.CollectionChanged += OnStylesChanged;
     }
 
     private INavigationService? navigation;
@@ -148,16 +149,16 @@ internal partial class EditorViewModel : ObservableObject
     /// <summary>
     /// The color of the stroke used to draw new paths.
     /// </summary>
-    [ObservableProperty]
+    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(CreateStyleCommand))]
     private Color currentStrokeColor = Colors.Blue;
 
     /// <summary>
     /// The thickness of the stroke used to draw new paths.
     /// </summary>
-    [ObservableProperty]
+    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(CreateStyleCommand))]
     private double currentStrokeThickness = 50;
 
-    private readonly ObservableCollection<Style, SortedSet<Style>> styles = new(new(new Style.NameComparer()));
+    private readonly ObservableSortedSet<Style> styles = new(new Style.NameComparer());
     /// <summary>
     /// Saved styles.
     /// </summary>
@@ -491,6 +492,28 @@ internal partial class EditorViewModel : ObservableObject
         ApplyCurrentStyleCommand.NotifyCanExecuteChanged();
     }
 
+    [RelayCommand(CanExecute = nameof(CanCreateStyle))]
+    private void CreateStyle()
+    {
+        CreateStyleViewModel createStyle = new(CurrentStrokeColor, CurrentStrokeThickness, Styles);
+        if (Navigation.ShowDialog(NavigationDestinations.CreateStyle, createStyle) != true)
+            return;
+        styles.AddOrUpdate(new(
+            createStyle.Name,
+            createStyle.UseStrokeColor ? createStyle.StrokeColor : null,
+            createStyle.UseStrokeThickness ? createStyle.StrokeThickness : null));
+    }
+    private bool CanCreateStyle =>
+        !Styles.Any(
+            style =>
+            style.StrokeColor == CurrentStrokeColor
+                && style.StrokeThickness == CurrentStrokeThickness);
+
+    private void OnStylesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        SetStyleCommand.NotifyCanExecuteChanged();
+        CreateStyleCommand.NotifyCanExecuteChanged();
+    }
     /// <summary>
     /// Open the animation preview window.
     /// </summary>

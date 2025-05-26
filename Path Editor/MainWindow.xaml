@@ -90,6 +90,7 @@
                     <MenuItem Header="_Style">
                         <MenuItem Header="_Set Current..." Command="{Binding Editor.SetStyleCommand}" />
                         <MenuItem Header="_Apply to Selection..." Command="{Binding Editor.ApplyStyleCommand}" />
+                        <MenuItem Header="_Create from Current..." Command="{Binding Editor.CreateStyleCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Image">
                         <MenuItem Header="_Crop to Paths" Command="{Binding Editor.CropToPathsCommand}" />
