@@ -5,6 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:converter="clr-namespace:NobleTech.Products.PathEditor.Converters"
+        xmlns:behaviors="clr-namespace:NobleTech.Products.PathEditor.Behaviors"
         xmlns:viewmodels="clr-namespace:NobleTech.Products.PathEditor.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance viewmodels:ResizeViewModel}"
@@ -40,10 +41,15 @@
             </Grid.RowDefinitions>
 
             <Label Grid.Row="0" Target="{Binding ElementName=WidthTextBox}">_Width:</Label>
-            <TextBox x:Name="WidthTextBox" Grid.Row="0" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBox x:Name="WidthTextBox"
+                     Grid.Row="0" Grid.Column="1"
+                     Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}"
+                     behaviors:Focus.IsFocusedOnLoad="True" />
 
             <Label Grid.Row="1" Target="{Binding ElementName=HeightTextBox}">_Height:</Label>
-            <TextBox x:Name="HeightTextBox" Grid.Row="1" Grid.Column="1" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBox x:Name="HeightTextBox"
+                     Grid.Row="1" Grid.Column="1"
+                     Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
