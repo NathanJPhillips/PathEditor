@@ -74,6 +74,8 @@ internal partial class EditorViewModel : ObservableObject
             Open(paths);
         Paths.CollectionChanged += (sender, args) => OnPathsChanged();
         SelectedPaths.CollectionChanged += (sender, args) => OnSelectionChanged();
+        if (StyleSaver.Open() is List<Style> loadedStyles)
+            styles.ResetTo(loadedStyles);
         Styles.CollectionChanged += OnStylesChanged;
     }
 
@@ -288,7 +290,11 @@ internal partial class EditorViewModel : ObservableObject
     /// <summary>
     /// Perform an auto-save of the current canvas.
     /// </summary>
-    public void AutoSave() => AutoSaver.Save(DrawnPaths);
+    public void AutoSave()
+    {
+        AutoSaver.Save(DrawnPaths);
+        StyleSaver.Save(Styles);
+    }
 
     /// <summary>
     /// Close the editor window.
