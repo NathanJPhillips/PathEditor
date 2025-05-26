@@ -32,6 +32,11 @@ internal class FileFormats(INavigationService navigation)
                 [".path"],
                 (paths, stream, name) => paths.SaveAsBinary(stream),
                 DrawnPaths.LoadFromBinary),
+            new FileFormat(
+                "SVG Files",
+                [".svg"],
+                (paths, stream, name) => paths.SaveAsSvg(stream),
+                DrawnPaths.LoadFromSvg),
             new(
                 "C# Source Files",
                 [".cs"],

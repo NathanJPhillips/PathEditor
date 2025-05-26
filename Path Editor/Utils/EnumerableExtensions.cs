@@ -29,6 +29,26 @@ internal static class EnumerableExtensions
         yield return projection(current, default);
     }
 
+    public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source)
+        where T : class
+    {
+        foreach (T? item in source)
+        {
+            if (item != null)
+                yield return item;
+        }
+    }
+
+    public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source)
+        where T : struct
+    {
+        foreach (T? item in source)
+        {
+            if (item.HasValue)
+                yield return item.Value;
+        }
+    }
+
     public static void DisposeAll(this IEnumerable<IDisposable> disposables)
     {
         foreach (IDisposable disposable in disposables)

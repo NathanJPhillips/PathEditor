@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Xml;
 using Path = System.Windows.Shapes.Path;
 
 namespace NobleTech.Products.PathEditor;
@@ -202,6 +203,111 @@ public partial class DrawnPaths(DrawnPaths.DrawnPath[] drawnPaths, Size canvasSi
         }
         writer.WriteLine("            ],");
         writer.WriteLine($"            new({canvasSize.Width}, {canvasSize.Height}));");
+    }
+
+    /// <summary>
+    /// Loads a <see cref="DrawnPaths"/> object from a SVG file.
+    /// </summary>
+    /// <param name="stream">The stream to read from.</param>
+    /// <returns>
+    /// A <see cref="DrawnPaths"/> object if the file is successfully parsed; otherwise, null.
+    /// </returns>
+    /// <remarks>
+    /// The method reads a SVG file containing a representation of a <see cref="DrawnPaths"/> object.
+    /// It parses the file to extract the paths, their points, stroke colors, stroke thicknesses,
+    /// and the canvas size.
+    /// If the SVG file contains anything other than <polyline> elements, it will ignore those elements.
+    /// If a <polyline> element does not have the required attributes, it will be skipped.
+    /// If a <polyline> element has invalid attributes, such as fill, they will be skipped.
+    /// If the file format is invalid or parsing fails, the method returns null.
+    /// </remarks>
+    public static DrawnPaths? LoadFromSvg(Stream stream)
+    {
+        Size? canvasSize = null;
+        List<DrawnPath> paths = [];
+
+        using var xml = XmlReader.Create(stream, new XmlReaderSettings { IgnoreComments = true, IgnoreWhitespace = true });
+        while (xml.Read())
+        {
+            if (xml.NodeType != XmlNodeType.Element)
+                continue;
+
+            if (xml.Name.Equals("svg", StringComparison.OrdinalIgnoreCase))
+            {
+                if (double.TryParse(xml.GetAttribute("width"), out double width)
+                    && double.TryParse(xml.GetAttribute("height"), out double height))
+                {
+                    canvasSize = new(width, height);
+                }
+            }
+            else if (xml.Name.Equals("polyline", StringComparison.OrdinalIgnoreCase))
+            {
+                string? pointsAttr = xml.GetAttribute("points");
+                string? strokeAttr = xml.GetAttribute("stroke");
+                string? strokeWidthAttr = xml.GetAttribute("stroke-width");
+
+                if (pointsAttr is null || strokeAttr is null || strokeWidthAttr is null
+                    || !strokeAttr.StartsWith("#") || strokeAttr.Length != 7
+                    || !double.TryParse(strokeWidthAttr, out double strokeThickness))
+                {
+                    continue;
+                }
+
+                // Parse points
+                string[] pointStrings = pointsAttr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                Point[] points =
+                    [.. pointStrings
+                        .Select(
+                            pt =>
+                            {
+                                string[] coords = pt.Split(',');
+                                return coords.Length == 2
+                                    && double.TryParse(coords[0], out double x) && double.TryParse(coords[1], out double y)
+                                        ? new Point(x, y)
+                                        : (Point?)null;
+                            })
+                        .WhereNotNull()];
+                if (points.Length < 2)
+                    continue;
+
+                // Parse stroke color (expecting #RRGGBB)
+                var strokeColor = Color.FromRgb(
+                    byte.Parse(strokeAttr.Substring(1, 2), System.Globalization.NumberStyles.HexNumber),
+                    byte.Parse(strokeAttr.Substring(3, 2), System.Globalization.NumberStyles.HexNumber),
+                    byte.Parse(strokeAttr.Substring(5, 2), System.Globalization.NumberStyles.HexNumber));
+
+                paths.Add(new(points, strokeColor, strokeThickness));
+            }
+        }
+
+        return canvasSize is Size size ? new(paths.ToArray(), size) : null;
+    }
+
+    /// <summary>
+    /// Saves the current <see cref="DrawnPaths"/> object as a SVG file.
+    /// </summary>
+    /// <param name="stream">The stream to which to write the SVG content.</param>
+    public void SaveAsSvg(Stream stream)
+    {
+        using StreamWriter writer = new(stream);
+        writer.WriteLine($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <svg xmlns="http://www.w3.org/2000/svg" version="1.1"
+                 width="{canvasSize.Width}" height="{canvasSize.Height}"
+                 viewBox="0 0 {canvasSize.Width} {canvasSize.Height}">
+            """);
+        foreach (DrawnPath path in drawnPaths)
+        {
+            // Use a verbatim interpolated string literal for multi-line formatting
+            writer.WriteLine($"""
+                <polyline points="{string.Join(" ", path.Points.Select(pt => $"{pt.X},{pt.Y}"))}"
+                          stroke="#{path.StrokeColor.R:X2}{path.StrokeColor.G:X2}{path.StrokeColor.B:X2}"
+                          stroke-width="{path.StrokeThickness}"
+                          stroke-linejoin="round" stroke-linecap="round"
+                          fill="none" />
+                """);
+        }
+        writer.WriteLine("</svg>");
     }
 
     /// <summary>
