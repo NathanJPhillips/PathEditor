@@ -9,4 +9,5 @@ internal enum NavigationDestinations
     Open,
     Save,
     Resize,
+    ApplyStyle,
 }

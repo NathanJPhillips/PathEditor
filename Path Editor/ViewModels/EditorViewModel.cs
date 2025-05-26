@@ -156,6 +156,12 @@ internal partial class EditorViewModel : ObservableObject
     [ObservableProperty]
     private double currentStrokeThickness = 50;
 
+    private readonly ObservableCollection<Style, SortedSet<Style>> styles = new(new(new Style.NameComparer()));
+    /// <summary>
+    /// Saved styles.
+    /// </summary>
+    public IReadOnlyObservableCollection<Style> Styles => styles;
+
     private readonly ObservableList<DrawablePath, List<DrawablePath>> paths = [];
     /// <summary>
     /// The paths that have been drawn or are being drawn on the canvas.
@@ -407,6 +413,41 @@ internal partial class EditorViewModel : ObservableObject
 
     private bool IsSomethingSelected() => SelectedPaths.Count != 0;
 
+    /// <summary>
+    /// Apply a style to the selected paths.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void ApplyStyle() =>
+        Navigation.ShowDialog(
+            NavigationDestinations.ApplyStyle,
+            new ApplyStyleViewModel(
+                [new("Current Style", CurrentStrokeColor, CurrentStrokeThickness), .. Styles],
+                (strokeColor, strokeThickness) => ApplyStyle("Apply Current Style", strokeColor, strokeThickness)));
+
+    /// <summary>
+    /// Apply the current style to the selected paths.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void ApplyCurrentStyle() => ApplyStyle("Apply Current Style", CurrentStrokeColor, CurrentStrokeThickness);
+
+    private void ApplyStyle(string undoTitle, Color? strokeColor, double? strokeThickness)
+    {
+        DrawablePath[] oldPaths = [.. Paths];
+        DrawablePath[] selectedPaths = [.. SelectedPaths];
+        UndoStack.Do(
+            undoTitle,
+            () =>
+            MapPaths(
+                selectedPaths,
+                path =>
+                new(
+                    path.Points,
+                    strokeColor ?? path.StrokeColor,
+                    strokeThickness ?? path.StrokeThickness,
+                    this)),
+            () => UndoPathChanges(oldPaths));
+    }
+
     private void OnSelectionChanged()
     {
         DeleteCommand.NotifyCanExecuteChanged();
@@ -416,6 +457,8 @@ internal partial class EditorViewModel : ObservableObject
         DeselectAllCommand.NotifyCanExecuteChanged();
         InvertSelectionCommand.NotifyCanExecuteChanged();
         DuplicateCommand.NotifyCanExecuteChanged();
+        ApplyStyleCommand.NotifyCanExecuteChanged();
+        ApplyCurrentStyleCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>
@@ -494,14 +537,13 @@ internal partial class EditorViewModel : ObservableObject
                     "Move Paths",
                     () =>
                     MapPaths(
+                        selectedPaths,
                         path =>
-                        selectedPaths.Contains(path)
-                            ? new(
-                                path.Points.Select(point => point + delta),
-                                path.StrokeColor,
-                                path.StrokeThickness,
-                                this)
-                            : path),
+                        new(
+                            path.Points.Select(point => point + delta),
+                            path.StrokeColor,
+                            path.StrokeThickness,
+                            this)),
                     () => UndoPathChanges(originalPaths));
                 IsMoving = false;
             }
@@ -751,6 +793,9 @@ internal partial class EditorViewModel : ObservableObject
         Debug.Assert(SelectedPaths.All(Paths.Contains));
         currentPaths.Clear();
     }
+
+    private void MapPaths(IEnumerable<DrawablePath> paths, Func<DrawablePath, DrawablePath> projection) =>
+        MapPaths(path => paths.Contains(path) ? projection(path) : path);
 
     private void TransformPaths(Matrix transformation) =>
         MapPaths(

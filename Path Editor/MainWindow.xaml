@@ -87,6 +87,9 @@
                         <MenuItem Header="_Delete" Command="ApplicationCommands.Delete" InputGestureText="Del" />
                         <MenuItem Header="D_uplicate" Command="{Binding Editor.DuplicateCommand}" InputGestureText="Ctrl+D" />
                     </MenuItem>
+                    <MenuItem Header="_Style">
+                        <MenuItem Header="_Apply to Selection..." Command="{Binding Editor.ApplyStyleCommand}" />
+                    </MenuItem>
                     <MenuItem Header="_Image">
                         <MenuItem Header="_Crop to Paths" Command="{Binding Editor.CropToPathsCommand}" />
                         <MenuItem Header="_Resize Canvas..." Command="{Binding Editor.ResizeCanvasCommand}" />
