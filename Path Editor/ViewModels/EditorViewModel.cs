@@ -514,6 +514,16 @@ internal partial class EditorViewModel : ObservableObject
         SetStyleCommand.NotifyCanExecuteChanged();
         CreateStyleCommand.NotifyCanExecuteChanged();
     }
+
+    [RelayCommand]
+    private void SetStyleImmediate(Style style)
+    {
+        if (style.StrokeColor is Color strokeColor)
+            CurrentStrokeColor = strokeColor;
+        if (style.StrokeThickness is double strokeThickness)
+            CurrentStrokeThickness = strokeThickness;
+    }
+
     /// <summary>
     /// Open the animation preview window.
     /// </summary>

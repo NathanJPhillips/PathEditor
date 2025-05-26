@@ -6,6 +6,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:converter="clr-namespace:NobleTech.Products.PathEditor.Converters"
+        xmlns:behaviors="clr-namespace:NobleTech.Products.PathEditor.Behaviors"
         xmlns:viewmodels="clr-namespace:NobleTech.Products.PathEditor.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance viewmodels:MainWindowViewModel}"
@@ -87,7 +88,15 @@
                         <MenuItem Header="_Delete" Command="ApplicationCommands.Delete" InputGestureText="Del" />
                         <MenuItem Header="D_uplicate" Command="{Binding Editor.DuplicateCommand}" InputGestureText="Ctrl+D" />
                     </MenuItem>
-                    <MenuItem Header="_Style">
+                    <MenuItem Header="_Style" behaviors:DynamicMenuItems.Source="{Binding Editor.Styles}" behaviors:DynamicMenuItems.AddSeparatorBefore="True">
+                        <behaviors:DynamicMenuItems.ContainerStyle>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Header" Value="{Binding Name}" />
+                                <Setter Property="Command" Value="{Binding DataContext.Editor.SetStyleImmediateCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                <Setter Property="CommandParameter" Value="{Binding}" />
+                                <Setter Property="Margin" Value="-5,1,0,0" />
+                            </Style>
+                        </behaviors:DynamicMenuItems.ContainerStyle>
                         <MenuItem Header="_Set Current..." Command="{Binding Editor.SetStyleCommand}" />
                         <MenuItem Header="_Apply to Selection..." Command="{Binding Editor.ApplyStyleCommand}" />
                         <MenuItem Header="_Create from Current..." Command="{Binding Editor.CreateStyleCommand}" />
