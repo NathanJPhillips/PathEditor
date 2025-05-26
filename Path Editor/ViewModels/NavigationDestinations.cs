@@ -10,4 +10,5 @@ internal enum NavigationDestinations
     Save,
     Resize,
     ApplyStyle,
+    SetStyle,
 }

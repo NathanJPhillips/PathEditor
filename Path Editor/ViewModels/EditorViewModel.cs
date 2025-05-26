@@ -73,6 +73,7 @@ internal partial class EditorViewModel : ObservableObject
             Open(paths);
         Paths.CollectionChanged += (sender, args) => OnPathsChanged();
         SelectedPaths.CollectionChanged += (sender, args) => OnSelectionChanged();
+        Styles.CollectionChanged += (sender, args) => SetStyleCommand.NotifyCanExecuteChanged();
     }
 
     private INavigationService? navigation;
@@ -414,6 +415,34 @@ internal partial class EditorViewModel : ObservableObject
     private bool IsSomethingSelected() => SelectedPaths.Count != 0;
 
     /// <summary>
+    /// Set the current style from the selected paths or a named style.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanSetStyle))]
+    private void SetStyle()
+    {
+        SetStyleViewModel setStyle =
+            new(
+                SelectionStrokeColor != null || SelectionStrokeThickness != null
+                    ? [new("Selection Style", SelectionStrokeColor, SelectionStrokeThickness), .. Styles]
+                    : Styles);
+        if (Navigation.ShowDialog(NavigationDestinations.SetStyle, setStyle) != true)
+            return;
+        if (setStyle.UseStrokeColor && setStyle.SelectedStyle.StrokeColor is Color strokeColor)
+            CurrentStrokeColor = strokeColor;
+        if (setStyle.UseStrokeThickness && setStyle.SelectedStyle.StrokeThickness is double strokeThickness)
+            CurrentStrokeThickness = strokeThickness;
+    }
+
+    private Color? SelectionStrokeColor =>
+        SelectedPaths.Select(path => path.StrokeColor).Distinct().SingleOrDefaultIfNotSingletonStruct();
+
+    private double? SelectionStrokeThickness =>
+        SelectedPaths.Select(path => path.StrokeThickness).Distinct().SingleOrDefaultIfNotSingletonStruct();
+
+    private bool CanSetStyle =>
+        SelectionStrokeColor != null || SelectionStrokeThickness != null || Styles.Count != 0;
+
+    /// <summary>
     /// Apply a style to the selected paths.
     /// </summary>
     [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
@@ -458,6 +487,7 @@ internal partial class EditorViewModel : ObservableObject
         InvertSelectionCommand.NotifyCanExecuteChanged();
         DuplicateCommand.NotifyCanExecuteChanged();
         ApplyStyleCommand.NotifyCanExecuteChanged();
+        SetStyleCommand.NotifyCanExecuteChanged();
         ApplyCurrentStyleCommand.NotifyCanExecuteChanged();
     }
 

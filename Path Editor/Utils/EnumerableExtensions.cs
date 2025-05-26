@@ -2,6 +2,26 @@
 
 internal static class EnumerableExtensions
 {
+    public static T? SingleOrDefaultIfNotSingletonStruct<T>(this IEnumerable<T> source)
+        where T : struct
+    {
+        using IEnumerator<T> enumerator = source.GetEnumerator();
+        if (!enumerator.MoveNext())
+            return default;
+        T? first = enumerator.Current;
+        return enumerator.MoveNext() ? default : first;
+    }
+
+    public static T? SingleOrDefaultIfNotSingletonClass<T>(this IEnumerable<T> source)
+        where T : class
+    {
+        using IEnumerator<T> enumerator = source.GetEnumerator();
+        if (!enumerator.MoveNext())
+            return default;
+        T? first = enumerator.Current;
+        return enumerator.MoveNext() ? default : first;
+    }
+
     public static IEnumerable<TResult> SelectFromPairs<T, TResult>(this IEnumerable<T> source, Func<T, T, TResult> projection)
     {
         IEnumerator<T> e = source.GetEnumerator();
