@@ -170,7 +170,7 @@ internal partial class EditorViewModel : ObservableObject
     /// <summary>
     /// The paths that have been drawn or are being drawn on the canvas.
     /// </summary>
-    public IReadOnlyObservableCollection<DrawablePath> Paths => paths;
+    public IReadOnlyObservableList<DrawablePath> Paths => paths;
 
     private readonly ObservableCollection<DrawablePath, HashSet<DrawablePath>> selectedPaths = [];
     /// <summary>
@@ -500,20 +500,6 @@ internal partial class EditorViewModel : ObservableObject
             () => UndoPathChanges(oldPaths));
     }
 
-    private void OnSelectionChanged()
-    {
-        DeleteCommand.NotifyCanExecuteChanged();
-        CutCommand.NotifyCanExecuteChanged();
-        CopyCommand.NotifyCanExecuteChanged();
-        SelectAllCommand.NotifyCanExecuteChanged();
-        DeselectAllCommand.NotifyCanExecuteChanged();
-        InvertSelectionCommand.NotifyCanExecuteChanged();
-        DuplicateCommand.NotifyCanExecuteChanged();
-        ApplyStyleCommand.NotifyCanExecuteChanged();
-        SetStyleCommand.NotifyCanExecuteChanged();
-        ApplyCurrentStyleCommand.NotifyCanExecuteChanged();
-    }
-
     [RelayCommand(CanExecute = nameof(CanCreateStyle))]
     private void CreateStyle()
     {
@@ -547,6 +533,115 @@ internal partial class EditorViewModel : ObservableObject
             CurrentStrokeColor = strokeColor;
         if (style.StrokeThickness is double strokeThickness)
             CurrentStrokeThickness = strokeThickness;
+    }
+
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void BringForward()
+    {
+        if (SelectedPaths.Count == 0)
+            return;
+
+        DrawablePath[] oldPaths = [.. Paths];
+        UndoStack.Do(
+            "Bring Forward",
+            () =>
+            {
+                List<(int index, DrawablePath path)> indexedPaths =
+                    [.. Paths.Index().Where(indexedPath => SelectedPaths.Contains(indexedPath.Item))];
+                int destinationIndex = Math.Min(indexedPaths[^1].index + 1, Paths.Count - 1);
+
+                // Move all selected paths forward as a block, starting from the end
+                for (int i = indexedPaths.Count - 1; i >= 0; i--)
+                {
+                    paths.RemoveAt(indexedPaths[i].index);
+                    paths.Insert(destinationIndex--, indexedPaths[i].path);
+                }
+            },
+            () => UndoPathChanges(oldPaths)
+        );
+    }
+
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void SendBackward()
+    {
+        if (SelectedPaths.Count == 0)
+            return;
+
+        DrawablePath[] oldPaths = [.. Paths];
+        UndoStack.Do(
+            "Send Backward",
+            () =>
+            {
+                List<(int index, DrawablePath path)> indexedPaths =
+                    [.. Paths.Index().Where(indexedPath => SelectedPaths.Contains(indexedPath.Item))];
+                int destinationIndex = Math.Max(indexedPaths[0].index - 1, 0);
+
+                // Move all selected paths backward as a block, starting from the start
+                for (int i = 0; i < indexedPaths.Count; i++)
+                {
+                    paths.RemoveAt(indexedPaths[i].index);
+                    paths.Insert(destinationIndex++, indexedPaths[i].path);
+                }
+            },
+            () => UndoPathChanges(oldPaths)
+        );
+    }
+
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void BringToFront()
+    {
+        if (SelectedPaths.Count == 0)
+            return;
+
+        DrawablePath[] oldPaths = [.. Paths];
+        UndoStack.Do(
+            "Bring to Front",
+            () =>
+            {
+                List<DrawablePath> selected = [.. Paths.Where(SelectedPaths.Contains)];
+                paths.RemoveRange(selected);
+                paths.AddRange(selected);
+            },
+            () => UndoPathChanges(oldPaths)
+        );
+    }
+
+    [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
+    private void SendToBack()
+    {
+        if (SelectedPaths.Count == 0)
+            return;
+
+        DrawablePath[] oldPaths = [.. Paths];
+        UndoStack.Do(
+            "Send to Back",
+            () =>
+            {
+                List<DrawablePath> selected = [.. Paths.Where(SelectedPaths.Contains).Reverse()];
+                paths.RemoveRange(selected);
+                foreach (var path in selected)
+                    paths.Insert(0, path);
+            },
+            () => UndoPathChanges(oldPaths)
+        );
+    }
+
+    private void OnSelectionChanged()
+    {
+        DeleteCommand.NotifyCanExecuteChanged();
+        CutCommand.NotifyCanExecuteChanged();
+        CopyCommand.NotifyCanExecuteChanged();
+        SelectAllCommand.NotifyCanExecuteChanged();
+        DeselectAllCommand.NotifyCanExecuteChanged();
+        InvertSelectionCommand.NotifyCanExecuteChanged();
+        DuplicateCommand.NotifyCanExecuteChanged();
+        ApplyStyleCommand.NotifyCanExecuteChanged();
+        SetStyleCommand.NotifyCanExecuteChanged();
+        ApplyCurrentStyleCommand.NotifyCanExecuteChanged();
+        BringForwardCommand.NotifyCanExecuteChanged();
+        SendBackwardCommand.NotifyCanExecuteChanged();
+        BringToFrontCommand.NotifyCanExecuteChanged();
+        SendToBackCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>

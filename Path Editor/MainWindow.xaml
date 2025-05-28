@@ -104,6 +104,16 @@
                         <MenuItem Header="_Apply to Selection..." Command="{Binding Editor.ApplyStyleCommand}" />
                         <MenuItem Header="_Create from Current..." Command="{Binding Editor.CreateStyleCommand}" />
                     </MenuItem>
+                    <MenuItem Header="_Paths">
+                        <MenuItem Header="Bring Forward"
+                                  Command="{Binding Editor.BringForwardCommand}" />
+                        <MenuItem Header="Send Backward"
+                                  Command="{Binding Editor.SendBackwardCommand}" />
+                        <MenuItem Header="Bring to Front"
+                                  Command="{Binding Editor.BringToFrontCommand}" />
+                        <MenuItem Header="Send to Back"
+                                  Command="{Binding Editor.SendToBackCommand}" />
+                    </MenuItem>
                     <MenuItem Header="_Image">
                         <MenuItem Header="_Crop to Paths" Command="{Binding Editor.CropToPathsCommand}" />
                         <MenuItem Header="_Resize Canvas..." Command="{Binding Editor.ResizeCanvasCommand}" />

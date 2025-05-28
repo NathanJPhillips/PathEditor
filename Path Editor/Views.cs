@@ -13,10 +13,9 @@ internal sealed class Views(Canvas canvas) : IDisposable
 {
     private readonly Dictionary<DrawablePath, View> views = [];
 
-    public void Add(DrawablePath path) => views.Add(path, new View(path, canvas));
+    public void Add(DrawablePath path) => views.Add(path, new View(path, canvas, canvas.Children.Count));
 
-    public void AddRange(IEnumerable<DrawablePath> paths) =>
-        views.AddRange(paths.ToDictionary(path => path, path => new View(path, canvas)));
+    public void Insert(int index, DrawablePath path) => views.Add(path, new View(path, canvas, index));
 
     public void Remove(DrawablePath path)
     {
@@ -42,7 +41,7 @@ internal sealed class Views(Canvas canvas) : IDisposable
 
         private double OutlineThickness => canvas.Width / 150;
 
-        public View(DrawablePath drawablePath, Canvas canvas)
+        public View(DrawablePath drawablePath, Canvas canvas, int index)
         {
             this.drawablePath = drawablePath;
             this.canvas = canvas;
@@ -69,7 +68,7 @@ internal sealed class Views(Canvas canvas) : IDisposable
                         },
                     IsHitTestVisible = false,
                 };
-            canvas.Children.Add(path);
+            canvas.Children.Insert(index, path);
             UpdateSelectionOutline();
             drawablePath.Points.Added += OnPointAdded;
             drawablePath.PropertyChanged += DrawablePath_PropertyChanged;

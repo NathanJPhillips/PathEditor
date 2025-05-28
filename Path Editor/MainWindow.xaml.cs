@@ -29,6 +29,7 @@ partial class MainWindow : Window, IDisposable
         if (e.OldValue is MainWindowViewModel oldViewModel)
         {
             oldViewModel.Editor.Paths.Added -= AddPath;
+            oldViewModel.Editor.Paths.Inserted -= InsertPath;
             oldViewModel.Editor.Paths.Removed -= RemovePath;
             oldViewModel.Editor.Paths.Reset -= Redraw;
             oldViewModel.Editor.PropertyChanged -= OnViewModelPropertyChanged;
@@ -36,6 +37,7 @@ partial class MainWindow : Window, IDisposable
         if (e.NewValue is MainWindowViewModel newViewModel)
         {
             newViewModel.Editor.Paths.Added += AddPath;
+            newViewModel.Editor.Paths.Inserted += InsertPath;
             newViewModel.Editor.Paths.Removed += RemovePath;
             newViewModel.Editor.Paths.Reset += Redraw;
             newViewModel.Editor.PropertyChanged += OnViewModelPropertyChanged;
@@ -46,6 +48,8 @@ partial class MainWindow : Window, IDisposable
 
     private void AddPath(object sender, DrawablePath path) => views.Add(path);
 
+    private void InsertPath(object sender, int index, DrawablePath path) => views.Insert(index, path);
+
     private void RemovePath(object sender, DrawablePath path) => views.Remove(path);
 
     private void Redraw(object sender) => Redraw();
@@ -55,7 +59,8 @@ partial class MainWindow : Window, IDisposable
         if (DataContext is not MainWindowViewModel viewModel)
             return;
         viewModel.Editor.Background?.DrawTo(Canvas);
-        views.AddRange(viewModel.Editor.Paths);
+        foreach (DrawablePath path in viewModel.Editor.Paths)
+            views.Add(path);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
