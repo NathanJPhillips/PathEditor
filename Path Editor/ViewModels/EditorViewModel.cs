@@ -74,7 +74,7 @@ internal partial class EditorViewModel : ObservableObject
             Open(paths);
         Paths.CollectionChanged += (sender, args) => OnPathsChanged();
         SelectedPaths.CollectionChanged += (sender, args) => OnSelectionChanged();
-        if (StyleSaver.Open() is List<Style> loadedStyles)
+        if (StyleSaver.Open(this) is List<Style> loadedStyles)
             styles.ResetTo(loadedStyles);
         Styles.CollectionChanged += OnStylesChanged;
     }
@@ -430,7 +430,7 @@ internal partial class EditorViewModel : ObservableObject
         SetStyleViewModel setStyle =
             new(
                 SelectionStrokeColor != null || SelectionStrokeThickness != null
-                    ? [new("Selection Style", SelectionStrokeColor, SelectionStrokeThickness), .. Styles]
+                    ? [new("Selection Style", SelectionStrokeColor, SelectionStrokeThickness, this), .. Styles]
                     : Styles);
         if (Navigation.ShowDialog(NavigationDestinations.SetStyle, setStyle) != true)
             return;
@@ -453,12 +453,28 @@ internal partial class EditorViewModel : ObservableObject
     /// Apply a style to the selected paths.
     /// </summary>
     [RelayCommand(CanExecute = nameof(IsSomethingSelected))]
-    private void ApplyStyle() =>
-        Navigation.ShowDialog(
-            NavigationDestinations.ApplyStyle,
-            new ApplyStyleViewModel(
-                [new("Current Style", CurrentStrokeColor, CurrentStrokeThickness), .. Styles],
-                (strokeColor, strokeThickness) => ApplyStyle("Apply Current Style", strokeColor, strokeThickness)));
+    private void ApplyStyle()
+    {
+        if (SelectedStyle is null)
+        {
+            Style currentStyle = new("Current Style", CurrentStrokeColor, CurrentStrokeThickness, this);
+            Navigation.ShowDialog(
+                NavigationDestinations.ApplyStyle,
+                new ApplyStyleViewModel(
+                    currentStyle,
+                    [currentStyle, .. Styles],
+                    (strokeColor, strokeThickness) => ApplyStyle("Apply Style", strokeColor, strokeThickness)));
+        }
+        else
+        {
+            Navigation.ShowDialog(
+                NavigationDestinations.ApplyStyle,
+                new ApplyStyleViewModel(
+                    SelectedStyle,
+                    Styles,
+                    (strokeColor, strokeThickness) => ApplyStyle("Apply Style", strokeColor, strokeThickness)));
+        }
+    }
 
     /// <summary>
     /// Apply the current style to the selected paths.
@@ -507,10 +523,13 @@ internal partial class EditorViewModel : ObservableObject
         styles.AddOrUpdate(new(
             createStyle.Name,
             createStyle.UseStrokeColor ? createStyle.StrokeColor : null,
-            createStyle.UseStrokeThickness ? createStyle.StrokeThickness : null));
+            createStyle.UseStrokeThickness ? createStyle.StrokeThickness : null,
+            this));
     }
-    private bool CanCreateStyle =>
-        !Styles.Any(
+    private bool CanCreateStyle => SelectedStyle is null;
+
+    public Style? SelectedStyle =>
+        Styles.FirstOrDefault(
             style =>
             style.StrokeColor == CurrentStrokeColor
                 && style.StrokeThickness == CurrentStrokeThickness);

@@ -24,6 +24,7 @@
         </Style>
         <converter:ColorToSolidColorBackgroundConverter x:Key="ColorToSolidColorBackgroundConverter" Invert="True" />
         <converter:EqualValuesConverter x:Key="EqualValuesConverter" />
+        <converter:BooleanNotConverter x:Key="BooleanNotConverter" />
     </Window.Resources>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.New" Executed="OnNewExecuted" CanExecute="OnNewCanExecute"/>
@@ -95,6 +96,8 @@
                                 <Setter Property="Command" Value="{Binding DataContext.Editor.SetStyleImmediateCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
                                 <Setter Property="CommandParameter" Value="{Binding}" />
                                 <Setter Property="Margin" Value="-5,1,0,0" />
+                                <Setter Property="IsChecked" Value="{Binding IsSelected, Mode=OneWay}" />
+                                <Setter Property="IsEnabled" Value="{Binding IsSelected, Mode=OneWay, Converter={StaticResource BooleanNotConverter}}" />
                             </Style>
                         </behaviors:DynamicMenuItems.ContainerStyle>
                         <MenuItem Header="_Set Current..." Command="{Binding Editor.SetStyleCommand}" />

@@ -8,11 +8,11 @@ internal partial class ApplyStyleViewModel : ObservableObject, INavigationViewMo
 {
     private readonly Action<Color?, double?> applyStyle;
 
-    public ApplyStyleViewModel(IEnumerable<Style> styles, Action<Color?, double?> applyStyle)
+    public ApplyStyleViewModel(Style selectedStyle, IEnumerable<Style> styles, Action<Color?, double?> applyStyle)
     {
         this.applyStyle = applyStyle;
         Styles = styles;
-        SelectedStyle = styles.FirstOrDefault() ?? throw new ArgumentException("Styles collection cannot be empty", nameof(styles));
+        SelectedStyle = selectedStyle;
     }
 
     private INavigationService? navigation;
