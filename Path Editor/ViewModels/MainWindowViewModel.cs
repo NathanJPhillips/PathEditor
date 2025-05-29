@@ -19,6 +19,27 @@ internal partial class MainWindowViewModel(EditorViewModel editor) : ObservableO
 
     public EditorViewModel Editor { get; } = editor;
 
+    public bool IsColourPickerShown
+    {
+        get => Navigation.IsWindowOpen(NavigationDestinations.ColourToolWindow);
+        set
+        {
+            if (value == IsColourPickerShown)
+                return;
+            if (value)
+            {
+                Navigation.ShowWindow(
+                    NavigationDestinations.ColourToolWindow,
+                    new ColourToolWindowViewModel(Editor),
+                    () => OnPropertyChanged());
+            }
+            else
+            {
+                Navigation.CloseWindow(NavigationDestinations.ColourToolWindow);
+            }
+        }
+    }
+
     /// <summary>
     /// Open the Baby Paint full-screen view.
     /// </summary>

@@ -1,0 +1,21 @@
+<UserControl x:Class="NobleTech.Products.PathEditor.ColourWheelControl"
+             x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" d:DesignHeight="200" d:DesignWidth="200">
+    <Grid>
+        <Canvas x:Name="WheelCanvas"
+                Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                MouseDown="WheelCanvas_MouseDown" MouseUp="WheelCanvas_MouseUp"
+                MouseMove="WheelCanvas_MouseMove"
+                Loaded="WheelCanvas_Loaded" SizeChanged="WheelCanvas_SizeChanged">
+            <Ellipse Width="5" Height="5"
+                     Canvas.Left="{Binding SelectedPoint.X, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                     Canvas.Top="{Binding SelectedPoint.Y, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                     Stroke="Black" StrokeThickness="1" Fill="White" />
+        </Canvas>
+    </Grid>
+</UserControl>

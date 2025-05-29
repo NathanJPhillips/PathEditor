@@ -12,4 +12,5 @@ internal enum NavigationDestinations
     ApplyStyle,
     SetStyle,
     CreateStyle,
+    ColourToolWindow,
 }

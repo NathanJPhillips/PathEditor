@@ -31,6 +31,7 @@ public partial class App : Application
         navigation.RegisterWindow<CreateStyleDialog>(NavigationDestinations.CreateStyle);
         navigation.RegisterWindow<BabyPaintWindow>(NavigationDestinations.BabyPaint);
         navigation.RegisterWindow<AnimationWindow>(NavigationDestinations.Animation);
+        navigation.RegisterWindow<ColourToolWindow>(NavigationDestinations.ColourToolWindow);
         MainWindow = navigation.ShowWindow(NavigationDestinations.PathEditor, new MainWindowViewModel(new()));
     }
 }

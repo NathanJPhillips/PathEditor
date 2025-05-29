@@ -6,30 +6,39 @@ namespace NobleTech.Products.PathEditor.ViewModels;
 
 internal class NavigationService : INavigationService
 {
-    private readonly Dictionary<NavigationDestinations, Type> windows;
+    private readonly Dictionary<NavigationDestinations, Type> windowTypes;
+    private readonly Dictionary<NavigationDestinations, Window> windows = [];
     private readonly Window? window;
 
-    private NavigationService(Dictionary<NavigationDestinations, Type> windows, Window window)
+    private NavigationService(Dictionary<NavigationDestinations, Type> windowTypes, Window window)
     {
-        this.windows = windows;
+        this.windowTypes = windowTypes;
         this.window = window;
     }
 
     public NavigationService()
     {
-        windows = [];
+        windowTypes = [];
     }
 
-    public Window ShowWindow(NavigationDestinations destination, object viewModel)
+    public Window ShowWindow(NavigationDestinations destination, object viewModel, Action? onClosed = null)
     {
         Window newWindow = CreateWindow(destination, viewModel);
         newWindow.Owner = window;
+        windows[destination] = newWindow;
+        newWindow.Closed +=
+            (sender, e) =>
+            {
+                if (windows.TryGetValue(destination, out Window? currentWindow) && sender == currentWindow)
+                    windows.Remove(destination);
+                onClosed?.Invoke();
+            };
         newWindow.Show();
         return newWindow;
     }
 
-    void INavigationService.ShowWindow(NavigationDestinations destination, object viewModel) =>
-        ShowWindow(destination, viewModel);
+    void INavigationService.ShowWindow(NavigationDestinations destination, object viewModel, Action? onClosed) =>
+        ShowWindow(destination, viewModel, onClosed);
 
     void INavigationService.ReplaceWindow(NavigationDestinations destination, object viewModel)
     {
@@ -113,11 +122,11 @@ internal class NavigationService : INavigationService
             saveFileDialogViewModel.SelectedFilterIndex = saveFileDialog.FilterIndex - 1;
             return saveResult;
         default:
-            if (!windows.TryGetValue(destination, out Type? windowType))
+            if (!windowTypes.TryGetValue(destination, out Type? windowType))
                 throw new ArgumentException($"Destination {destination} not registered.", nameof(destination));
             var dialog = (Window)Activator.CreateInstance(windowType)!;
             if (viewModel is INavigationViewModel navigationViewModel)
-                navigationViewModel.Navigation = new NavigationService(windows, dialog);
+                navigationViewModel.Navigation = new NavigationService(windowTypes, dialog);
             dialog.DataContext = viewModel;
             dialog.Owner = window;
             return dialog.ShowDialog();
@@ -142,20 +151,29 @@ internal class NavigationService : INavigationService
         window.Close();
     }
 
+    void INavigationService.CloseWindow(NavigationDestinations destination)
+    {
+        if (windows.TryGetValue(destination, out Window? window))
+            window.Close();
+    }
+
+    bool INavigationService.IsWindowOpen(NavigationDestinations destination) =>
+        windows.ContainsKey(destination);
+
     public void RegisterWindow<TWindow>(NavigationDestinations destination) where TWindow : Window
     {
-        if (windows.ContainsKey(destination))
+        if (windowTypes.ContainsKey(destination))
             throw new ArgumentException($"Window with name {destination} already registered.");
-        windows[destination] = typeof(TWindow);
+        windowTypes[destination] = typeof(TWindow);
     }
 
     private Window CreateWindow(NavigationDestinations destination, object viewModel, bool disposeViewModel = true)
     {
-        if (!windows.TryGetValue(destination, out Type? windowType))
+        if (!windowTypes.TryGetValue(destination, out Type? windowType))
             throw new ArgumentException($"Window with name {destination} not registered.");
         var newWindow = (Window)Activator.CreateInstance(windowType)!;
         if (viewModel is INavigationViewModel navigationViewModel)
-            navigationViewModel.Navigation = new NavigationService(windows, newWindow);
+            navigationViewModel.Navigation = new NavigationService(windowTypes, newWindow);
         newWindow.DataContext = viewModel;
         if (disposeViewModel && viewModel is IDisposable disposableViewModel)
             newWindow.Closed += (_, _) => disposableViewModel.Dispose();

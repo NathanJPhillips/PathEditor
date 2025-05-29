@@ -144,6 +144,9 @@
                 <Label>Background:</Label>
                 <xctk:ColorPicker SelectedColor="{Binding Editor.Background, Converter={StaticResource ColorToSolidColorBackgroundConverter}}" />
             </ToolBar>
+            <ToolBar>
+                <ToggleButton Content="Color" IsChecked="{Binding IsColourPickerShown}" />
+            </ToolBar>
         </ToolBarTray>
         <Border Margin="5" BorderBrush="Black" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Viewbox>
