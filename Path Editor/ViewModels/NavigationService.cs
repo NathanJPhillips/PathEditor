@@ -149,7 +149,7 @@ internal class NavigationService : INavigationService
         windows[destination] = typeof(TWindow);
     }
 
-    private Window CreateWindow(NavigationDestinations destination, object viewModel)
+    private Window CreateWindow(NavigationDestinations destination, object viewModel, bool disposeViewModel = true)
     {
         if (!windows.TryGetValue(destination, out Type? windowType))
             throw new ArgumentException($"Window with name {destination} not registered.");
@@ -157,6 +157,8 @@ internal class NavigationService : INavigationService
         if (viewModel is INavigationViewModel navigationViewModel)
             navigationViewModel.Navigation = new NavigationService(windows, newWindow);
         newWindow.DataContext = viewModel;
+        if (disposeViewModel && viewModel is IDisposable disposableViewModel)
+            newWindow.Closed += (_, _) => disposableViewModel.Dispose();
         return newWindow;
     }
 }

@@ -11,7 +11,7 @@ namespace NobleTech.Products.PathEditor.ViewModels;
 /// <summary>
 /// The view model for editing windows.
 /// </summary>
-internal partial class EditorViewModel : ObservableObject, INavigationViewModel
+internal partial class EditorViewModel : ObservableObject
 {
     private FileInformation? fileInfo;
     /// <summary>
@@ -53,7 +53,7 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// </remarks>
     public INavigationService Navigation
     {
-        private get => navigation ?? throw new InvalidOperationException("Navigation used before it was set");
+        get => navigation ?? throw new InvalidOperationException("Navigation used before it was set");
         set => navigation = value;
     }
 
@@ -66,26 +66,8 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// <summary>
     /// The size of the drawing canvas.
     /// </summary>
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanvasWidth), nameof(CanvasHeight))]
+    [ObservableProperty]
     private Size canvasSize = new(1920, 1080);
-
-    /// <summary>
-    /// The width of the drawing canvas.
-    /// </summary>
-    public double CanvasWidth
-    {
-        get => CanvasSize.Width;
-        set => CanvasSize = CanvasSize with { Width = value };
-    }
-
-    /// <summary>
-    /// The height of the drawing canvas.
-    /// </summary>
-    public double CanvasHeight
-    {
-        get => CanvasSize.Height;
-        set => CanvasSize = CanvasSize with { Height = value };
-    }
 
     /// <summary>
     /// The background of the canvas, which could be a solid colour or an image, for example.
@@ -120,20 +102,6 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
     /// The undo stack used to manage undo and redo actions.
     /// </summary>
     public UndoViewModel UndoStack { get; } = new();
-
-    /// <summary>
-    /// Set the current stroke color to the specified color.
-    /// </summary>
-    /// <param name="color">The color to set the stroke to.</param>
-    [RelayCommand]
-    private void SetColor(Color color) => CurrentStrokeColor = color;
-
-    /// <summary>
-    /// Set the current stroke thickness to the specified value.
-    /// </summary>
-    /// <param name="thickness">The thickness to set the stroke to.</param>
-    [RelayCommand]
-    private void SetThickness(double thickness) => CurrentStrokeThickness = thickness;
 
     /// <summary>
     /// Create a new, empty canvas.
@@ -246,18 +214,6 @@ internal partial class EditorViewModel : ObservableObject, INavigationViewModel
         Navigation.Close();
         navigation = null;
     }
-
-    /// <summary>
-    /// Open the Baby Paint full-screen view.
-    /// </summary>
-    [RelayCommand]
-    private void BabyPaintView() => Navigation.ReplaceWindow(NavigationDestinations.BabyPaint, this);
-
-    /// <summary>
-    /// Open the default Path Editor window.
-    /// </summary>
-    [RelayCommand]
-    private void ExitBabyPaintView() => Navigation.ReplaceWindow(NavigationDestinations.PathEditor, this);
 
     /// <summary>
     /// Open the animation preview window.

@@ -28,19 +28,19 @@ partial class BabyPaintWindow : Window, IDisposable
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (e.OldValue is EditorViewModel oldViewModel)
+        if (e.OldValue is BabyPaintWindowViewModel oldViewModel)
         {
-            oldViewModel.Paths.Added -= AddPath;
-            oldViewModel.Paths.Removed -= RemovePath;
-            oldViewModel.Paths.Reset -= Redraw;
-            oldViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            oldViewModel.Editor.Paths.Added -= AddPath;
+            oldViewModel.Editor.Paths.Removed -= RemovePath;
+            oldViewModel.Editor.Paths.Reset -= Redraw;
+            oldViewModel.Editor.PropertyChanged -= OnViewModelPropertyChanged;
         }
-        if (e.NewValue is EditorViewModel newViewModel)
+        if (e.NewValue is BabyPaintWindowViewModel newViewModel)
         {
-            newViewModel.Paths.Added += AddPath;
-            newViewModel.Paths.Removed += RemovePath;
-            newViewModel.Paths.Reset += Redraw;
-            newViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            newViewModel.Editor.Paths.Added += AddPath;
+            newViewModel.Editor.Paths.Removed += RemovePath;
+            newViewModel.Editor.Paths.Reset += Redraw;
+            newViewModel.Editor.PropertyChanged += OnViewModelPropertyChanged;
         }
         Redraw();
         SetCursor();
@@ -55,10 +55,10 @@ partial class BabyPaintWindow : Window, IDisposable
     private void Redraw()
     {
         views.Clear();
-        if (DataContext is not EditorViewModel viewModel)
+        if (DataContext is not BabyPaintWindowViewModel viewModel)
             return;
-        viewModel.Background?.DrawTo(Canvas);
-        views.AddRange(viewModel.Paths);
+        viewModel.Editor.Background?.DrawTo(Canvas);
+        views.AddRange(viewModel.Editor.Paths);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -76,11 +76,11 @@ partial class BabyPaintWindow : Window, IDisposable
 
     private void Canvas_TouchEvent(object sender, TouchEventArgs e)
     {
-        if (DataContext is not EditorViewModel viewModel)
+        if (DataContext is not BabyPaintWindowViewModel viewModel)
             return;
         foreach (TouchPoint touchPoint in e.GetIntermediateTouchPoints(Canvas))
-            ProcessPoint(viewModel, touchPoint, e.TouchDevice);
-        ProcessPoint(viewModel, e.GetTouchPoint(Canvas), e.TouchDevice);
+            ProcessPoint(viewModel.Editor, touchPoint, e.TouchDevice);
+        ProcessPoint(viewModel.Editor, e.GetTouchPoint(Canvas), e.TouchDevice);
         e.Handled = true;
     }
 
@@ -118,23 +118,23 @@ partial class BabyPaintWindow : Window, IDisposable
 
     private void ProcessPoint(MouseEventArgs e, InputEvents inputEvent, MouseDevice device)
     {
-        if (DataContext is not EditorViewModel viewModel)
+        if (DataContext is not BabyPaintWindowViewModel viewModel)
             return;
-        viewModel.ProcessPoint(e.GetPosition(Canvas), inputEvent, device);
+        viewModel.Editor.ProcessPoint(e.GetPosition(Canvas), inputEvent, device);
     }
 
     private void SetCursor()
     {
         Canvas.Cursor =
-            DataContext is not EditorViewModel viewModel || !IsAncestorOf(Canvas)
+            DataContext is not BabyPaintWindowViewModel viewModel || !IsAncestorOf(Canvas)
                 ? Cursors.Arrow
                 : CursorUtils.CreateCircle(
-                        viewModel.CurrentStrokeThickness
+                        viewModel.Editor.CurrentStrokeThickness
                             * VisualTreeHelper.GetDpi(Canvas).PixelsPerDip
                             * (Canvas.TransformToAncestor(this) is MatrixTransform transform
                                 ? transform.Matrix.M11 // M11 is the X-axis scale
                                 : 1),
-                        viewModel.CurrentStrokeColor);
+                        viewModel.Editor.CurrentStrokeColor);
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
@@ -146,41 +146,41 @@ partial class BabyPaintWindow : Window, IDisposable
 
     private void AutoSave()
     {
-        if (DataContext is EditorViewModel viewModel)
-            viewModel.AutoSave();
+        if (DataContext is BabyPaintWindowViewModel viewModel)
+            viewModel.Editor.AutoSave();
     }
 
-    private class CommandForwarder(Func<EditorViewModel, ICommand> getCommand) : CommandForwarder<EditorViewModel>(getCommand) { }
+    private class CommandForwarder(Func<BabyPaintWindowViewModel, ICommand> getCommand) : CommandForwarder<BabyPaintWindowViewModel>(getCommand) { }
 
-    private readonly CommandForwarder newCommand = new(viewModel => viewModel.NewCommand);
+    private readonly CommandForwarder newCommand = new(viewModel => viewModel.Editor.NewCommand);
     private void OnNewExecuted(object sender, ExecutedRoutedEventArgs e) => newCommand.ExecuteCommand(DataContext, e);
     private void OnNewCanExecute(object sender, CanExecuteRoutedEventArgs e) => newCommand.CanExecuteCommand(DataContext, e);
 
-    private readonly CommandForwarder openCommand = new(viewModel => viewModel.OpenCommand);
+    private readonly CommandForwarder openCommand = new(viewModel => viewModel.Editor.OpenCommand);
     private void OnOpenExecuted(object sender, ExecutedRoutedEventArgs e) => openCommand.ExecuteCommand(DataContext, e);
     private void OnOpenCanExecute(object sender, CanExecuteRoutedEventArgs e) => openCommand.CanExecuteCommand(DataContext, e);
 
-    private readonly CommandForwarder saveCommand = new(viewModel => viewModel.SaveCommand);
+    private readonly CommandForwarder saveCommand = new(viewModel => viewModel.Editor.SaveCommand);
     private void OnSaveExecuted(object sender, ExecutedRoutedEventArgs e) => saveCommand.ExecuteCommand(DataContext, e);
     private void OnSaveCanExecute(object sender, CanExecuteRoutedEventArgs e) => saveCommand.CanExecuteCommand(DataContext, e);
 
-    private readonly CommandForwarder saveAsCommand = new(viewModel => viewModel.SaveAsCommand);
+    private readonly CommandForwarder saveAsCommand = new(viewModel => viewModel.Editor.SaveAsCommand);
     private void OnSaveAsExecuted(object sender, ExecutedRoutedEventArgs e) => saveAsCommand.ExecuteCommand(DataContext, e);
     private void OnSaveAsCanExecute(object sender, CanExecuteRoutedEventArgs e) => saveAsCommand.CanExecuteCommand(DataContext, e);
 
-    private readonly CommandForwarder printCommand = new(viewModel => viewModel.PrintCommand);
+    private readonly CommandForwarder printCommand = new(viewModel => viewModel.Editor.PrintCommand);
     private void OnPrintExecuted(object sender, ExecutedRoutedEventArgs e) => printCommand.ExecuteCommand(DataContext, e);
     private void OnPrintCanExecute(object sender, CanExecuteRoutedEventArgs e) => printCommand.CanExecuteCommand(DataContext, e);
 
-    private readonly CommandForwarder closeCommand = new(viewModel => viewModel.CloseCommand);
+    private readonly CommandForwarder closeCommand = new(viewModel => viewModel.Editor.CloseCommand);
     private void OnCloseExecuted(object sender, ExecutedRoutedEventArgs e) => closeCommand.ExecuteCommand(DataContext, e);
     private void OnCloseCanExecute(object sender, CanExecuteRoutedEventArgs e) => closeCommand.CanExecuteCommand(DataContext, e);
 
-    private readonly CommandForwarder undoCommand = new(viewModel => viewModel.UndoStack.UndoCommand);
+    private readonly CommandForwarder undoCommand = new(viewModel => viewModel.Editor.UndoStack.UndoCommand);
     private void OnUndoExecuted(object sender, ExecutedRoutedEventArgs e) => undoCommand.ExecuteCommand(DataContext, e);
     private void OnUndoCanExecute(object sender, CanExecuteRoutedEventArgs e) => undoCommand.CanExecuteCommand(DataContext, e);
 
-    private readonly CommandForwarder redoCommand = new(viewModel => viewModel.UndoStack.RedoCommand);
+    private readonly CommandForwarder redoCommand = new(viewModel => viewModel.Editor.UndoStack.RedoCommand);
     private void OnRedoExecuted(object sender, ExecutedRoutedEventArgs e) => redoCommand.ExecuteCommand(DataContext, e);
     private void OnRedoCanExecute(object sender, CanExecuteRoutedEventArgs e) => redoCommand.CanExecuteCommand(DataContext, e);
 

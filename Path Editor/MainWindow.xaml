@@ -8,8 +8,8 @@
         xmlns:converter="clr-namespace:NobleTech.Products.PathEditor.Converters"
         xmlns:viewmodels="clr-namespace:NobleTech.Products.PathEditor.ViewModels"
         mc:Ignorable="d"
-        d:DataContext="{d:DesignInstance viewmodels:EditorViewModel}"
-        Title="{Binding FileName, StringFormat='Path Editor - {0}'}" Height="450" Width="800">
+        d:DataContext="{d:DesignInstance viewmodels:MainWindowViewModel}"
+        Title="{Binding Editor.FileName, StringFormat='Path Editor - {0}'}" Height="450" Width="800">
     <Window.Resources>
         <Style TargetType="AccessText">
             <Style.Triggers>
@@ -52,7 +52,7 @@
                     <MenuItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <AccessText>_Undo</AccessText>
-                            <TextBlock Text="{Binding UndoStack.NextUndoName}" FontStyle="Italic" Margin="5,0,0,0" />
+                            <TextBlock Text="{Binding Editor.UndoStack.NextUndoName}" FontStyle="Italic" Margin="5,0,0,0" />
                         </StackPanel>
                     </MenuItem.Header>
                 </MenuItem>
@@ -60,20 +60,20 @@
                     <MenuItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <AccessText>_Redo</AccessText>
-                            <TextBlock Text="{Binding UndoStack.NextRedoName}" FontStyle="Italic" Margin="5,0,0,0" />
+                            <TextBlock Text="{Binding Editor.UndoStack.NextRedoName}" FontStyle="Italic" Margin="5,0,0,0" />
                         </StackPanel>
                     </MenuItem.Header>
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="_Image">
-                <MenuItem Header="_Crop to Paths" Command="{Binding CropToPathsCommand}" />
-                <MenuItem Header="_Resize Canvas..." Command="{Binding ResizeCanvasCommand}" />
-                <MenuItem Header="_Fit to Canvas" Command="{Binding FitToCanvasCommand}" />
-                <MenuItem Header="Cent_er on Canvas" Command="{Binding CenterOnCanvasCommand}" />
+                <MenuItem Header="_Crop to Paths" Command="{Binding Editor.CropToPathsCommand}" />
+                <MenuItem Header="_Resize Canvas..." Command="{Binding Editor.ResizeCanvasCommand}" />
+                <MenuItem Header="_Fit to Canvas" Command="{Binding Editor.FitToCanvasCommand}" />
+                <MenuItem Header="Cent_er on Canvas" Command="{Binding Editor.CenterOnCanvasCommand}" />
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Baby Paint" Command="{Binding BabyPaintViewCommand}" InputGestureText="F11" />
-                <MenuItem Header="_Preview Animation" Command="{Binding PreviewAnimationCommand}" />
+                <MenuItem Header="_Preview Animation" Command="{Binding Editor.PreviewAnimationCommand}" />
             </MenuItem>
             <StackPanel Orientation="Horizontal">
                 <Border Width="1" Height="20" Background="Gray" VerticalAlignment="Center" />
@@ -81,20 +81,20 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <Label>Brush width:</Label>
-                <xctk:DoubleUpDown Minimum="0" Value="{Binding CurrentStrokeThickness}" Width="50" Increment="1" />
+                <xctk:DoubleUpDown Minimum="0" Value="{Binding Editor.CurrentStrokeThickness}" Width="50" Increment="1" />
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <Label>Brush colour:</Label>
-                <xctk:ColorPicker SelectedColor="{Binding CurrentStrokeColor}" />
+                <xctk:ColorPicker SelectedColor="{Binding Editor.CurrentStrokeColor}" />
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <Label>Background:</Label>
-                <xctk:ColorPicker SelectedColor="{Binding Background, Converter={StaticResource ColorToSolidColorBackgroundConverter}}" />
+                <xctk:ColorPicker SelectedColor="{Binding Editor.Background, Converter={StaticResource ColorToSolidColorBackgroundConverter}}" />
             </StackPanel>
         </Menu>
         <Border Margin="5" BorderBrush="Black" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Viewbox>
-                <Canvas x:Name="Canvas" Width="{Binding CanvasSize.Width}" Height="{Binding CanvasSize.Height}"
+                <Canvas x:Name="Canvas" Width="{Binding Editor.CanvasSize.Width}" Height="{Binding Editor.CanvasSize.Height}"
                         TouchDown="Canvas_TouchEvent" TouchMove="Canvas_TouchEvent" TouchUp="Canvas_TouchEvent"
                         MouseMove="Canvas_MouseMove" MouseLeftButtonDown="Canvas_MouseLeftButtonDown" MouseLeftButtonUp="Canvas_MouseLeftButtonUp"
                         Stylus.IsPressAndHoldEnabled="False" Stylus.IsTapFeedbackEnabled="False" Stylus.IsTouchFeedbackEnabled="False" Stylus.IsFlicksEnabled="False"
